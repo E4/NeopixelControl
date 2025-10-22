@@ -49,9 +49,11 @@ chaser_data_t *chaser_data = NULL;
 tNeopixel chaser_pixel[CONFIG_LED_COUNT];
 int8_t chaser_count = 0;
 
+
 static httpd_handle_t server = NULL;
 static char html[2048];
 static const char index_html_template[] = "<!DOCTYPE html><html><head><meta charset=\"utf-8\"/><title>Lightie</title><style> html, body { margin: 0; background-color: black; } body { display: flex; flex-direction: column; align-items: center; min-height: 100svmin; } .top { width: 100svmin; text-align: center; padding: 10svmin 0; height: 20svmin; } .sliders { display: flex; align-items: center; justify-content: center; width: 100svmin; height: 60svmin; padding: 5svmin; box-sizing: border-box; } input[type=\"range\"] { writing-mode: bt-lr; -webkit-appearance: slider-vertical; height: 100%%; flex: 1 1 0; min-width: 0; } #c { width: 50svmin; height: 20svmin; border: none; outline: none; cursor: pointer; } </style></head><body><div class=\"top\"><input id=\"c\" type=\"color\"></div><div class=\"sliders\"><input id=\"r\" type=\"range\" min=\"0\" max=\"255\" value=\"0\"/><input id=\"g\" type=\"range\" min=\"0\" max=\"255\" value=\"0\"/><input id=\"b\" type=\"range\" min=\"0\" max=\"255\" value=\"0\"/></div><script>const c=()=>\"#\"+(16777216|a.r<<16|a.g<<8|a.b).toString(16).slice(1),d=document.getElementById(\"r\"),e=document.getElementById(\"g\"),f=document.getElementById(\"b\"),g=document.getElementById(\"c\");let h,a={r:%d,g:%d,b:%d},k=0;function l(b){b.target==g?(b=g.value,b=b.replace(/^#/,\"\"),b=parseInt(b,16),a={r:b>>16&255,g:b>>8&255,b:b&255},d.value=a.r,e.value=a.g,f.value=a.b):(a.r=d.value,a.g=e.value,a.b=f.value,g.value=c());performance.now()>k+100?m():(clearTimeout(h),h=setTimeout(m,k+100-performance.now()))}function m(){k=performance.now();fetch(`/?r=${a.r}&g=${a.g}&b=${a.b}`,{method:\"GET\",cache:\"no-store\",keepalive:!0}).catch(()=>{})}[d,e,f,g].forEach(b=>b.addEventListener(\"input\",l));g.value=c();d.value=a.r;e.value=a.g;f.value=a.b;</script></body></html>";
+
 
 static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
   if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
@@ -72,8 +74,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
 }
 
 
-static void init_wifi()
-{
+static void init_wifi() {
   esp_netif_init();
   esp_event_loop_create_default();
   esp_netif_create_default_wifi_sta();
@@ -96,21 +97,25 @@ static void init_wifi()
 
 
 static void flash_leds(int8_t r, int8_t g, int8_t b) {
+  uint32_t c = NP_RGB(r,g,b);
   for(int i=0;i<CONFIG_LED_COUNT;i++) {
-    // led_strip_set_pixel(led_strip, i, r, g, b);
+    chaser_pixel[i].index = i;
+    chaser_pixel[i].rgb = c;
   }
-  // led_strip_refresh(led_strip);
-  vTaskDelay(5 / portTICK_PERIOD_MS);
-  // led_strip_clear(led_strip);
+  neopixel_SetPixel(neopixel, chaser_pixel, ARRAY_SIZE(chaser_pixel));
+  vTaskDelay(taskDelay); // minimum delay?
+
+
+  for(int i=0;i<CONFIG_LED_COUNT;i++) {
+    chaser_pixel[i].index = i;
+    chaser_pixel[i].rgb = 0;
+  }
+  neopixel_SetPixel(neopixel, chaser_pixel, ARRAY_SIZE(chaser_pixel));
+  vTaskDelay(taskDelay); // minimum delay?
 }
 
 
-
-
-
-
-static uint32_t get_interpolated_rgb_for_chaser(chaser_data_t *data)
-{
+static uint32_t get_interpolated_rgb_for_chaser(chaser_data_t *data) {
   static int8_t i0;
   static int8_t i1;
   static int8_t interpolator;
@@ -126,8 +131,7 @@ static uint32_t get_interpolated_rgb_for_chaser(chaser_data_t *data)
 }
 
 
-static void move_chasers()
-{
+static void move_chasers() {
   static uint32_t frame;
   static int16_t i;
   static int16_t repeats;
@@ -155,8 +159,7 @@ static void move_chasers()
 
 
 
-static esp_err_t server_request_handler(httpd_req_t *req)
-{
+static esp_err_t server_request_handler(httpd_req_t *req) {
   char query[256];
   bool has_rgb = false;
   if (httpd_req_get_url_query_str(req, query, sizeof(query)) == ESP_OK) {
@@ -205,8 +208,7 @@ static httpd_handle_t start_webserver(void)
 }
 
 
-static void stop_webserver(void)
-{
+static void stop_webserver(void) {
   if (server) {
     httpd_stop(server);
     server = NULL;
@@ -215,60 +217,11 @@ static void stop_webserver(void)
 
 
 
-static bool test1(uint32_t iterations)
-{
-  tNeopixel pixel[] =
-  {
-    { 0, NP_RGB(50, 0,  0) }, /* red */
-    { 0, NP_RGB(0,  50, 0) }, /* green */
-    { 0, NP_RGB(0,  0, 50) }, /* blue */
-    { 0, NP_RGB(0,  0,  0) }, /* off */
-  };
-
-  if(NULL == neopixel)
-  {
-    ESP_LOGE(TAG, "[%s] Initialization failed\n", __func__);
-    return false;
-  }
-
-  ESP_LOGI(TAG, "[%s] Starting", __func__);
-  for(int iter = 0; iter < iterations; ++iter)
-  {
-    for(int i = 0; i < ARRAY_SIZE(pixel); ++i)
-    {
-      neopixel_SetPixel(neopixel, &pixel[i], 1);
-      vTaskDelay(pdMS_TO_TICKS(200));
-    }
-  }
-  ESP_LOGI(TAG, "[%s] Finished - closing neopixel", __func__);
-  ESP_LOGI(TAG, "[%s] Finished", __func__);
-  return true;
-}
-
-static bool test2(uint32_t iterations)
-{
-
-  ESP_LOGI(TAG, "[%s] Starting", __func__);
-  for(int i = 0; i < iterations * CONFIG_LED_COUNT; ++i)
-  {
-    tNeopixel pixel[] =
-    {
-      { (i)   % CONFIG_LED_COUNT, NP_RGB(0, 0,  0) },
-      { (i+5) % CONFIG_LED_COUNT, NP_RGB(0, 50, 0) }, /* green */
-    };
-    neopixel_SetPixel(neopixel, pixel, ARRAY_SIZE(pixel));
-    vTaskDelay(taskDelay);
-  }
-  ESP_LOGI(TAG, "[%s] Finished - closing neopixel", __func__);
-  ESP_LOGI(TAG, "[%s] Finished", __func__);
-  return true;
-}
 
 
 void app_main(void) {
   neopixel = neopixel_Init(CONFIG_LED_COUNT, CONFIG_LED_GPIO);
-  if(NULL == neopixel)
-  {
+  if(NULL == neopixel) {
     ESP_LOGE(TAG, "[%s] Initialization failed\n", __func__);
     return;
   }
@@ -277,19 +230,19 @@ void app_main(void) {
   taskDelay = MAX(1, pdMS_TO_TICKS(1000UL / refreshRate));
 
 
-  for(;;) {
-    test1(2);
-    test2(2);
-  }
-
   nvs_flash_init();
   init_wifi();
 
   while(chaser_count == 0) {
     ESP_LOGI(TAG, "chaser count: %d", chaser_count);
-    flash_leds(0,0,32);
-    vTaskDelay(500 / portTICK_PERIOD_MS);
+    flash_leds(255,0,0);
+    vTaskDelay(pdMS_TO_TICKS(500));
+    flash_leds(0,255,0);
+    vTaskDelay(pdMS_TO_TICKS(500));
+    flash_leds(0,0,255);
+    vTaskDelay(pdMS_TO_TICKS(500));
   }
+
   flash_leds(0,32,0);
 
   while(1) {
@@ -298,8 +251,6 @@ void app_main(void) {
   }
   neopixel_Deinit(neopixel);
 }
-
-
 
 
 
