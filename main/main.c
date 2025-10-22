@@ -43,7 +43,6 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
 static void init_wifi();
 
 
-static int wifi_connected = 0;
 static tNeopixelContext neopixel;
 chaser_data_t *chaser_data = NULL;
 tNeopixel chaser_pixel[CONFIG_LED_COUNT];
@@ -220,12 +219,6 @@ void app_main(void) {
   nvs_flash_init();
   init_wifi();
   neopixel = neopixel_Init(CONFIG_LED_COUNT, CONFIG_LED_GPIO);
-  while(wifi_connected==0) {
-    vTaskDelay(500 / portTICK_PERIOD_MS);
-    flash_leds(32,0,0);
-  }
-  vTaskDelay(500 / portTICK_PERIOD_MS);
-  ESP_LOGI(TAG, "HTTP request complete!");
 
   while(chaser_count == 0) {
     ESP_LOGI(TAG, "chaser count: %d", chaser_count);
