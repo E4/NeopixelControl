@@ -44,6 +44,7 @@ static void init_wifi();
 
 
 static tNeopixelContext neopixel;
+static uint32_t refreshRate, taskDelay;
 chaser_data_t *chaser_data = NULL;
 tNeopixel chaser_pixel[CONFIG_LED_COUNT];
 int8_t chaser_count = 0;
@@ -214,11 +215,75 @@ static void stop_webserver(void)
 
 
 
+static bool test1(uint32_t iterations)
+{
+  tNeopixel pixel[] =
+  {
+    { 0, NP_RGB(50, 0,  0) }, /* red */
+    { 0, NP_RGB(0,  50, 0) }, /* green */
+    { 0, NP_RGB(0,  0, 50) }, /* blue */
+    { 0, NP_RGB(0,  0,  0) }, /* off */
+  };
+
+  if(NULL == neopixel)
+  {
+    ESP_LOGE(TAG, "[%s] Initialization failed\n", __func__);
+    return false;
+  }
+
+  ESP_LOGI(TAG, "[%s] Starting", __func__);
+  for(int iter = 0; iter < iterations; ++iter)
+  {
+    for(int i = 0; i < ARRAY_SIZE(pixel); ++i)
+    {
+      neopixel_SetPixel(neopixel, &pixel[i], 1);
+      vTaskDelay(pdMS_TO_TICKS(200));
+    }
+  }
+  ESP_LOGI(TAG, "[%s] Finished - closing neopixel", __func__);
+  ESP_LOGI(TAG, "[%s] Finished", __func__);
+  return true;
+}
+
+static bool test2(uint32_t iterations)
+{
+
+  ESP_LOGI(TAG, "[%s] Starting", __func__);
+  for(int i = 0; i < iterations * CONFIG_LED_COUNT; ++i)
+  {
+    tNeopixel pixel[] =
+    {
+      { (i)   % CONFIG_LED_COUNT, NP_RGB(0, 0,  0) },
+      { (i+5) % CONFIG_LED_COUNT, NP_RGB(0, 50, 0) }, /* green */
+    };
+    neopixel_SetPixel(neopixel, pixel, ARRAY_SIZE(pixel));
+    vTaskDelay(taskDelay);
+  }
+  ESP_LOGI(TAG, "[%s] Finished - closing neopixel", __func__);
+  ESP_LOGI(TAG, "[%s] Finished", __func__);
+  return true;
+}
+
 
 void app_main(void) {
+  neopixel = neopixel_Init(CONFIG_LED_COUNT, CONFIG_LED_GPIO);
+  if(NULL == neopixel)
+  {
+    ESP_LOGE(TAG, "[%s] Initialization failed\n", __func__);
+    return;
+  }
+
+  refreshRate = neopixel_GetRefreshRate(neopixel);
+  taskDelay = MAX(1, pdMS_TO_TICKS(1000UL / refreshRate));
+
+
+  for(;;) {
+    test1(2);
+    test2(2);
+  }
+
   nvs_flash_init();
   init_wifi();
-  neopixel = neopixel_Init(CONFIG_LED_COUNT, CONFIG_LED_GPIO);
 
   while(chaser_count == 0) {
     ESP_LOGI(TAG, "chaser count: %d", chaser_count);
