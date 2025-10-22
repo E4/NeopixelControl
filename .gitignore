@@ -1,0 +1,5 @@
+build/
+cat.exe.stackdump
+sdkconfig
+managed_components
+main/config.h
