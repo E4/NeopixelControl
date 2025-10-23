@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include "freertos/FreeRTOS.h"
 #include "esp_system.h"
@@ -55,7 +56,7 @@ int8_t chaser_count = 0;
 
 static httpd_handle_t server = NULL;
 static char html[2048];
-static const char index_html_template[] = "<!DOCTYPE html><html><head><meta charset=\"utf-8\"/><title>Lightie</title></head><body></body></html>";
+static const char index_html_template[] = "<!DOCTYPE html><html><head><meta charset='utf-8'/><title>Chasers</title></head><body>%d %d %d</body></html>";
 
 static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
   if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
@@ -155,35 +156,74 @@ static void move_chasers() {
 }
 
 
+static esp_err_t server_request_handler_post(httpd_req_t *req) {
+  const size_t total_len = req->content_len;
+  if (total_len == 0) {
+    httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Empty POST body");
+    return ESP_FAIL;
+  }
+
+  if (total_len % sizeof(chaser_data_t) != 0) {
+    httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid chaser data length");
+    return ESP_FAIL;
+  }
+
+  chaser_data_t *new_data = malloc(total_len);
+  if (new_data == NULL) {
+    httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Out of memory");
+    return ESP_ERR_NO_MEM;
+  }
+
+  size_t received = 0;
+  while (received < total_len) {
+    int ret = httpd_req_recv(req, (char *)new_data + received, total_len - received);
+    if (ret <= 0) {
+      if (ret == HTTPD_SOCK_ERR_TIMEOUT) {
+        continue;
+      }
+      free(new_data);
+      httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to receive POST data");
+      return ESP_FAIL;
+    }
+    received += ret;
+  }
+
+  if (chaser_data != NULL) {
+    free(chaser_data);
+  }
+  chaser_data = new_data;
+  chaser_count = total_len / sizeof(chaser_data_t);
+
+  for (int i = 0; i < chaser_count; i++) {
+    if (chaser_data[i].position_delay == 0) {
+      chaser_data[i].position_delay = 1;
+    }
+    if (chaser_data[i].color_delay == 0) {
+      chaser_data[i].color_delay = 1;
+    }
+  }
+
+  ESP_LOGI(TAG, "Updated chaser data with %d entries", chaser_count);
+
+  const char resp[] = "OK\n";
+  httpd_resp_send(req, resp, HTTPD_RESP_USE_STRLEN);
+  return ESP_OK;
+}
+
+static esp_err_t server_request_handler_get(httpd_req_t *req) {
+  httpd_resp_set_type(req, "text/html");
+  int len = snprintf(html, sizeof(html), index_html_template, 0, 0, 0);
+  httpd_resp_send(req, html, len);
+  return ESP_OK;
+}
+
 
 static esp_err_t server_request_handler(httpd_req_t *req) {
-  char query[256];
-  bool has_rgb = false;
-  if (httpd_req_get_url_query_str(req, query, sizeof(query)) == ESP_OK) {
-    ESP_LOGI(TAG, "Request query: %s", query);
-    char value[8];
-    if (httpd_query_key_value(query, "r", value, sizeof(value)) == ESP_OK) {
-      atoi(value);
-      has_rgb = true;
-    }
-    if (httpd_query_key_value(query, "g", value, sizeof(value)) == ESP_OK) {
-      atoi(value);
-      has_rgb = true;
-    }
-    if (httpd_query_key_value(query, "b", value, sizeof(value)) == ESP_OK) {
-      atoi(value);
-      has_rgb = true;
-    }
-  }
-  if (has_rgb) {
-    const char resp[] = "OK\n";
-    httpd_resp_send(req, resp, HTTPD_RESP_USE_STRLEN);
+  if (req->method == HTTP_POST) {
+    return server_request_handler_post(req);
   } else {
-    httpd_resp_set_type(req, "text/html");
-    int len = snprintf(html, sizeof(html), index_html_template, 0, 0, 0);
-    httpd_resp_send(req, html, len);
+    return server_request_handler_get(req);
   }
-  return ESP_OK;
 }
 
 static httpd_handle_t start_webserver(void)
@@ -193,13 +233,20 @@ static httpd_handle_t start_webserver(void)
   config.stack_size = 8192;
   httpd_handle_t server = NULL;
   if (httpd_start(&server, &config) == ESP_OK) {
-    httpd_uri_t uri = {
+    httpd_uri_t get_uri = {
       .uri = "/",
       .method = HTTP_GET,
       .handler = server_request_handler,
       .user_ctx = NULL
     };
-    httpd_register_uri_handler(server, &uri);
+    httpd_uri_t post_uri = {
+      .uri = "/",
+      .method = HTTP_POST,
+      .handler = server_request_handler,
+      .user_ctx = NULL
+    };
+    httpd_register_uri_handler(server, &get_uri);
+    httpd_register_uri_handler(server, &post_uri);
   }
   return server;
 }
