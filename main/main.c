@@ -32,13 +32,16 @@
 #define ARRAY_SIZE(x) (sizeof(x)/sizeof(x[0]))
 #define MAX_HTTP_OUTPUT_BUFFER 5000
 
+#define set_leds(r, g, b) set_leds_int(NP_RGB((r), (g), (b)))
+#define flash_leds(r, g, b) flash_leds_int(NP_RGB((r), (g), (b)))
 
 static httpd_handle_t start_webserver(void);
 static void stop_webserver(void);
 static esp_err_t server_request_handler(httpd_req_t *req);
 static void move_chasers();
 static uint32_t get_interpolated_rgb_for_chaser(chaser_data_t *data);
-static void flash_leds(int8_t r, int8_t g, int8_t b);
+static void set_leds_int(uint32_t c);
+static void flash_leds_int(uint32_t c);
 static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data);
 static void init_wifi();
 
@@ -95,23 +98,18 @@ static void init_wifi() {
   esp_wifi_connect();
 }
 
-
-static void flash_leds(int8_t r, int8_t g, int8_t b) {
-  uint32_t c = NP_RGB(r,g,b);
+static void set_leds_int(uint32_t c) {
   for(int i=0;i<CONFIG_LED_COUNT;i++) {
     chaser_pixel[i].index = i;
     chaser_pixel[i].rgb = c;
   }
   neopixel_SetPixel(neopixel, chaser_pixel, ARRAY_SIZE(chaser_pixel));
-  vTaskDelay(taskDelay); // minimum delay?
+}
 
-
-  for(int i=0;i<CONFIG_LED_COUNT;i++) {
-    chaser_pixel[i].index = i;
-    chaser_pixel[i].rgb = 0;
-  }
-  neopixel_SetPixel(neopixel, chaser_pixel, ARRAY_SIZE(chaser_pixel));
-  vTaskDelay(taskDelay); // minimum delay?
+static void flash_leds_int(uint32_t c) {
+  set_leds_int(c);
+  vTaskDelay(taskDelay);
+  set_leds_int(0);
 }
 
 
@@ -233,19 +231,22 @@ void app_main(void) {
   nvs_flash_init();
   init_wifi();
 
+  flash_leds(255,0,0);
+  vTaskDelay(pdMS_TO_TICKS(500));
+  flash_leds(0,255,0);
+  vTaskDelay(pdMS_TO_TICKS(500));
+  flash_leds(0,0,255);
+  vTaskDelay(pdMS_TO_TICKS(500));
+
   while(chaser_count == 0) {
     ESP_LOGI(TAG, "chaser count: %d", chaser_count);
-    flash_leds(255,0,0);
-    vTaskDelay(pdMS_TO_TICKS(500));
-    flash_leds(0,255,0);
-    vTaskDelay(pdMS_TO_TICKS(500));
-    flash_leds(0,0,255);
+    flash_leds(4,4,4);
     vTaskDelay(pdMS_TO_TICKS(500));
   }
 
-  flash_leds(0,32,0);
+  flash_leds(255,255,255);
 
-  while(1) {
+  while(true) {
     move_chasers();
     vTaskDelay(14 / portTICK_PERIOD_MS);
   }
