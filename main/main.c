@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include "freertos/FreeRTOS.h"
 #include "esp_system.h"
@@ -157,6 +158,60 @@ static void move_chasers() {
 
 
 static esp_err_t server_request_handler(httpd_req_t *req) {
+  if (req->method == HTTP_POST) {
+    const size_t total_len = req->content_len;
+    if (total_len == 0) {
+      httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Empty POST body");
+      return ESP_FAIL;
+    }
+
+    if (total_len % sizeof(chaser_data_t) != 0) {
+      httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid chaser data length");
+      return ESP_FAIL;
+    }
+
+    chaser_data_t *new_data = malloc(total_len);
+    if (new_data == NULL) {
+      httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Out of memory");
+      return ESP_ERR_NO_MEM;
+    }
+
+    size_t received = 0;
+    while (received < total_len) {
+      int ret = httpd_req_recv(req, (char *)new_data + received, total_len - received);
+      if (ret <= 0) {
+        if (ret == HTTPD_SOCK_ERR_TIMEOUT) {
+          continue;
+        }
+        free(new_data);
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to receive POST data");
+        return ESP_FAIL;
+      }
+      received += ret;
+    }
+
+    if (chaser_data != NULL) {
+      free(chaser_data);
+    }
+    chaser_data = new_data;
+    chaser_count = total_len / sizeof(chaser_data_t);
+
+    for (int i = 0; i < chaser_count; i++) {
+      if (chaser_data[i].position_delay == 0) {
+        chaser_data[i].position_delay = 1;
+      }
+      if (chaser_data[i].color_delay == 0) {
+        chaser_data[i].color_delay = 1;
+      }
+    }
+
+    ESP_LOGI(TAG, "Updated chaser data with %d entries", chaser_count);
+
+    const char resp[] = "OK\n";
+    httpd_resp_send(req, resp, HTTPD_RESP_USE_STRLEN);
+    return ESP_OK;
+  }
+
   char query[256];
   bool has_rgb = false;
   if (httpd_req_get_url_query_str(req, query, sizeof(query)) == ESP_OK) {
@@ -193,13 +248,20 @@ static httpd_handle_t start_webserver(void)
   config.stack_size = 8192;
   httpd_handle_t server = NULL;
   if (httpd_start(&server, &config) == ESP_OK) {
-    httpd_uri_t uri = {
+    httpd_uri_t get_uri = {
       .uri = "/",
       .method = HTTP_GET,
       .handler = server_request_handler,
       .user_ctx = NULL
     };
-    httpd_register_uri_handler(server, &uri);
+    httpd_uri_t post_uri = {
+      .uri = "/",
+      .method = HTTP_POST,
+      .handler = server_request_handler,
+      .user_ctx = NULL
+    };
+    httpd_register_uri_handler(server, &get_uri);
+    httpd_register_uri_handler(server, &post_uri);
   }
   return server;
 }
