@@ -3,3 +3,4 @@ cat.exe.stackdump
 sdkconfig
 managed_components
 main/config.h
+html/*.jar

@@ -38,7 +38,8 @@
 
 static httpd_handle_t start_webserver(void);
 static void stop_webserver(void);
-static esp_err_t server_request_handler(httpd_req_t *req);
+static esp_err_t server_request_handler_get(httpd_req_t *req);
+static esp_err_t server_request_handler_post(httpd_req_t *req);
 static void move_chasers();
 static uint32_t get_interpolated_rgb_for_chaser(chaser_data_t *data);
 static void set_leds_int(uint32_t c);
@@ -218,14 +219,6 @@ static esp_err_t server_request_handler_get(httpd_req_t *req) {
 }
 
 
-static esp_err_t server_request_handler(httpd_req_t *req) {
-  if (req->method == HTTP_POST) {
-    return server_request_handler_post(req);
-  } else {
-    return server_request_handler_get(req);
-  }
-}
-
 static httpd_handle_t start_webserver(void)
 {
   httpd_config_t config = HTTPD_DEFAULT_CONFIG();
@@ -236,13 +229,13 @@ static httpd_handle_t start_webserver(void)
     httpd_uri_t get_uri = {
       .uri = "/",
       .method = HTTP_GET,
-      .handler = server_request_handler,
+      .handler = server_request_handler_get,
       .user_ctx = NULL
     };
     httpd_uri_t post_uri = {
       .uri = "/",
       .method = HTTP_POST,
-      .handler = server_request_handler,
+      .handler = server_request_handler_post,
       .user_ctx = NULL
     };
     httpd_register_uri_handler(server, &get_uri);
