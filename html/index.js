@@ -1,8 +1,3 @@
-
-/**
- * @preserve Copyright (c) Emre Yucel
- */
-
 'use strict';
 
 /**
@@ -360,10 +355,10 @@ Dyna.removeElement = function(dynaroot) {
  * @constructor
  */
 var ChaserControl = function() {
-  const uint16_t = ["","number",{"min":"0","max":"65535","value":"0"}];
-  const uint8_t = ["","number",{"min":"0","max":"255","value":"0"}];
-  const int8_t = ["","number",{"min":"-128","max":"127","value":"0"}];
-  const color_t = ["","color",{"value":"#000000"}];
+  const uint16_t = ["v","number",{"min":"0","max":"65535","value":"0"}];
+  const uint8_t = ["v","number",{"min":"0","max":"255","value":"0"}];
+  const int8_t = ["v","number",{"min":"-128","max":"127","value":"0"}];
+  const color_t = ["v","color",{"value":"#000000"}];
 
   // Posts raw chaser bytes given as a plain JS array (length always multiple of 32).
   async function postChaserBytes(arr) {
@@ -409,10 +404,11 @@ var ChaserControl = function() {
 
   let fieldContainerChildren;
   let fieldContainer = Dyna.div("",null,null, fieldContainerChildren = []);
-  let outerContainer = Dyna.div("",null,null, [fieldContainer,Dyna.butt("a","add",{"onclick":addAnotherChaser})])
+  let outerContainer = Dyna.div("",null,null, [fieldContainer,Dyna.butt("a","add",{"on-click":addAnotherChaser})])
 
   function addAnotherChaser() {
     appendChasers(new ArrayBuffer(32));
+    gatherAndSendValues();
   }
   
   function appendChasers(dataArray) {
@@ -428,6 +424,7 @@ var ChaserControl = function() {
       let i = fieldContainerChildren.indexOf(chaserEntry);
       if(i!=-1) fieldContainerChildren.splice(i,1);
       Dyna.update(fieldContainer);
+      gatherAndSendValues();
     }
     let u8 = (i)=>dataView.getUint8(base+i);
     let u16 = (i)=>dataView.getUint16(base+i,1);
@@ -448,7 +445,7 @@ var ChaserControl = function() {
       getGenericNumberField('Repeat', uint8_t, u8(25)),
       getGenericNumberField('Limit Low', uint16_t, u16(26)),
       getGenericNumberField('Limit High', uint16_t, u16(28)),
-      Dyna.butt("r","remove",{"onclick":removeThese})
+      Dyna.butt("r","remove",{"on-click":removeThese})
     ]);
     fieldContainerChildren.push(chaserEntry);
     Dyna.update(fieldContainer);
@@ -457,17 +454,58 @@ var ChaserControl = function() {
   function getGenericNumberField(fieldLabel, fieldType, value) {
     var rv = [...fieldType];
     rv[2]["value"] = value.toString();
-    return Dyna.label("",fieldLabel,null,[Dyna.input(...rv)]);
+    rv[2]["on-change"] = gatherAndSendValues;
+    return Dyna.label("n",fieldLabel,null,[Dyna.input(...rv)]);
   }
 
   function getUpdatedColorField(r,g,b) {
     var rv = [...color_t];
     rv[2]["value"] = "#"+toHex2(r)+toHex2(g)+toHex2(b);
-    return Dyna.input(...rv)
+    rv[2]["on-change"] = gatherAndSendValues;
+    return Dyna.label("c",null,null,[Dyna.input(...rv)]);
   }
 
   function toHex2(n) {
     return n.toString(16).padStart(2, "0");
+  }
+
+  function gatherAndSendValues() {
+    var arrayBuffer = new ArrayBuffer(fieldContainerChildren.length*32);
+    var dataView = new DataView(arrayBuffer);
+    for(let i=0;i<fieldContainerChildren.length;i++) {
+      gatherChaserValues(fieldContainerChildren[i]["children"],dataView,i*32);
+    }
+    postChaserBytes(arrayBuffer);
+  }
+
+  function gatherChaserValues(chaserElement, dataView, baseOffset) {
+    gatherColorValue(chaserElement[0], dataView, baseOffset+0);
+    gatherColorValue(chaserElement[1], dataView, baseOffset+3);
+    gatherColorValue(chaserElement[2], dataView, baseOffset+6);
+    gatherColorValue(chaserElement[3], dataView, baseOffset+9);
+    gatherColorValue(chaserElement[4], dataView, baseOffset+12);
+    gatherColorValue(chaserElement[5], dataView, baseOffset+15);
+    dataView.setUint16(baseOffset+18,getValue(chaserElement[6]));
+    dataView.setInt8(baseOffset+20,getValue(chaserElement[7]));
+    dataView.setUint8(baseOffset+21,getValue(chaserElement[8]));
+    dataView.setUint8(baseOffset+22,getValue(chaserElement[9]));
+    dataView.setUint8(baseOffset+23,getValue(chaserElement[10]));
+    dataView.setUint8(baseOffset+24,getValue(chaserElement[11]));
+    dataView.setUint8(baseOffset+25,getValue(chaserElement[12]));
+    dataView.setUint8(baseOffset+26,getValue(chaserElement[13]));
+    dataView.setUint8(baseOffset+28,getValue(chaserElement[14]));
+  }
+
+  function gatherColorValue(colorElement, dataView, positionOffset) {
+    let v = getValue(colorElement);
+    dataView.setUint8(positionOffset+0, parseInt(v.slice(1, 3), 16)); // R
+    dataView.setUint8(positionOffset+1, parseInt(v.slice(3, 5), 16)); // G
+    dataView.setUint8(positionOffset+2, parseInt(v.slice(5, 7), 16)); // B
+  }
+
+  function getValue(labeledElement) {
+    if(!labeledElement["children"].length) return null;
+    return labeledElement["children"][0].value;
   }
 
   Dyna.create(outerContainer,document.body);
