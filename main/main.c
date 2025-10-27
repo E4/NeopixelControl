@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
 #include "esp_system.h"
 #include "esp_wifi.h"
 #include "esp_log.h"
@@ -59,6 +60,7 @@ static uint32_t refreshRate, taskDelay;
 chaser_data_t *chaser_data = NULL;
 tNeopixel chaser_pixel[CONFIG_LED_COUNT];
 int8_t chaser_count = 0;
+static SemaphoreHandle_t chaser_data_mutex = NULL;
 
 
 static httpd_handle_t server = NULL;
@@ -144,6 +146,18 @@ static void move_chasers() {
   static int16_t repeats;
   static int16_t r;
   static uint32_t chaser_color;
+  if (chaser_data_mutex == NULL) {
+    return;
+  }
+
+  if (xSemaphoreTake(chaser_data_mutex, portMAX_DELAY) != pdTRUE) {
+    return;
+  }
+
+  if (chaser_count <= 0 || chaser_data == NULL) {
+    xSemaphoreGive(chaser_data_mutex);
+    return;
+  }
   if(++frame==0) frame=1;
   for(i=0;i<chaser_count;i++) {
     if(frame%chaser_data[i].position_delay==0) {
@@ -165,6 +179,8 @@ static void move_chasers() {
       neopixel_SetPixel(neopixel, chaser_pixel, 1);
     }
   }
+
+  xSemaphoreGive(chaser_data_mutex);
 }
 
 
@@ -219,6 +235,10 @@ static esp_err_t server_request_handler_post(httpd_req_t *req) {
     received += ret;
   }
 
+  if (chaser_data_mutex != NULL) {
+    xSemaphoreTake(chaser_data_mutex, portMAX_DELAY);
+  }
+
   if (chaser_data != NULL) {
     free(chaser_data);
   }
@@ -232,6 +252,10 @@ static esp_err_t server_request_handler_post(httpd_req_t *req) {
     if (chaser_data[i].color_delay == 0) {
       chaser_data[i].color_delay = 1;
     }
+  }
+
+  if (chaser_data_mutex != NULL) {
+    xSemaphoreGive(chaser_data_mutex);
   }
 
   ESP_LOGI(TAG, "Updated chaser data with %d entries", chaser_count);
@@ -292,6 +316,12 @@ void app_main(void) {
 
   refreshRate = neopixel_GetRefreshRate(neopixel);
   taskDelay = MAX(1, pdMS_TO_TICKS(1000UL / refreshRate));
+
+  chaser_data_mutex = xSemaphoreCreateMutex();
+  if (chaser_data_mutex == NULL) {
+    ESP_LOGE(TAG, "Failed to create chaser data mutex");
+    return;
+  }
 
 
   nvs_flash_init();
