@@ -432,8 +432,8 @@ var ChaserControl = function() {
       getGenericNumberField('Color Speed', uint8_t, u8(23)),
       getGenericNumberField('Color Delay', uint8_t, u8(24)),
       getGenericNumberField('Repeat', uint8_t, u8(25)),
-      getGenericNumberField('Limit Low', uint16_t, u16(26)),
-      getGenericNumberField('Limit High', uint16_t, u16(28)),
+      getGenericNumberField('Range Length', uint16_t, u16(26)),
+      getGenericNumberField('Range Offset', uint16_t, u16(28)),
       Dyna.butt("r","remove",{"on-click":removeThese})
     ]);
     fieldContainerChildren.push(chaserEntry);

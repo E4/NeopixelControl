@@ -7,7 +7,7 @@ typedef struct  {
   uint8_t color_speed;      //    23: The speed of color shift
   uint8_t color_delay;      //    24: Move color every n'th frame (minimum 1)
   uint8_t repeat;           //    25: Apply this to every n'th pixel (0 = no repeat)
-  uint16_t limit_low;       // 26-27: Not implemented
-  uint16_t limit_high;      // 28-29: Not implemented
-  uint8_t reserved[2];      // 30-31: Not implemented
+  uint16_t range_length;    // 28-29: range length
+  uint16_t range_offset;    // 26-27: range offset
+  uint16_t reserved;        // 30-31: reserved
 } chaser_data_t;
