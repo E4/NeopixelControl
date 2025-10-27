@@ -427,9 +427,9 @@ var ChaserControl = function() {
       getUpdatedColorField(u8(15),u8(16),u8(17)),
       getGenericNumberField('Position Offset', uint16_t, u16(18)),
       getGenericNumberField('Position Speed', int8_t, i8(20)),
-      getGenericNumberField('Position Delay', uint8_t, u8(23)),
-      getGenericNumberField('Color Offset', uint8_t, u8(21)),
-      getGenericNumberField('Color Speed', uint8_t, u8(22)),
+      getGenericNumberField('Position Delay', uint8_t, u8(21)),
+      getGenericNumberField('Color Offset', uint8_t, u8(22)),
+      getGenericNumberField('Color Speed', uint8_t, u8(23)),
       getGenericNumberField('Color Delay', uint8_t, u8(24)),
       getGenericNumberField('Repeat', uint8_t, u8(25)),
       getGenericNumberField('Limit Low', uint16_t, u16(26)),
@@ -481,8 +481,8 @@ var ChaserControl = function() {
     dataView.setUint8(baseOffset+23,getValue(chaserElement[10]));
     dataView.setUint8(baseOffset+24,getValue(chaserElement[11]));
     dataView.setUint8(baseOffset+25,getValue(chaserElement[12]));
-    dataView.setUint8(baseOffset+26,getValue(chaserElement[13]));
-    dataView.setUint8(baseOffset+28,getValue(chaserElement[14]));
+    dataView.setUint16(baseOffset+26,getValue(chaserElement[13]),true);
+    dataView.setUint16(baseOffset+28,getValue(chaserElement[14]),true);
   }
 
   function gatherColorValue(colorElement, dataView, positionOffset) {
