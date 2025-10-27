@@ -252,6 +252,8 @@ static esp_err_t server_request_handler_post(httpd_req_t *req) {
     }
   }
 
+  flash_leds(1,1,1);
+
   if (chaser_data_mutex != NULL) {
     xSemaphoreGive(chaser_data_mutex);
   }
