@@ -33,6 +33,11 @@
 #define ARRAY_SIZE(x) (sizeof(x)/sizeof(x[0]))
 #define MAX_HTTP_OUTPUT_BUFFER 5000
 
+static inline int positive_mod(int value, int mod) {
+  int result = value % mod;
+  return (result < 0) ? result + mod : result;
+}
+
 #define set_leds(r, g, b) set_leds_int(NP_RGB((r), (g), (b)))
 #define flash_leds(r, g, b) flash_leds_int(NP_RGB((r), (g), (b)))
 
@@ -141,7 +146,10 @@ static void move_chasers() {
   static uint32_t chaser_color;
   if(++frame==0) frame=1;
   for(i=0;i<chaser_count;i++) {
-    if(frame%chaser_data[i].position_delay==0) chaser_data[i].position_offset = (chaser_data[i].position_offset + chaser_data[i].position_speed) % CONFIG_LED_COUNT;
+    if(frame%chaser_data[i].position_delay==0) {
+      int next_offset = positive_mod((int)chaser_data[i].position_offset + chaser_data[i].position_speed, CONFIG_LED_COUNT);
+      chaser_data[i].position_offset = (uint16_t)next_offset;
+    }
     if(frame%chaser_data[i].color_delay==0) chaser_data[i].color_offset = (chaser_data[i].color_offset + chaser_data[i].color_speed) % 240;
     chaser_color = get_interpolated_rgb_for_chaser(&chaser_data[i]);
     if(chaser_data[i].repeat) {
