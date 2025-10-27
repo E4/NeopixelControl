@@ -370,32 +370,20 @@ var ChaserControl = function() {
       body: bytes,
     });
   
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      throw new Error(`POST failed: ${res.status} ${res.statusText}${text ? ` — ${text}` : ""}`);
-    }
     return res;
   }
   
   function parseChasers(blob) {
-    // normalize input
     let buf;
     if (blob instanceof ArrayBuffer) buf = blob;
     else if (blob instanceof Uint8Array) buf = blob.buffer.slice(blob.byteOffset, blob.byteOffset + blob.byteLength);
-    else throw new Error("Input must be ArrayBuffer or Uint8Array");
-
-    const STRUCT_SIZE = 32;
-    if (buf.byteLength % STRUCT_SIZE !== 0) {
-      throw new Error(`Invalid blob length ${buf.byteLength}, not multiple of ${STRUCT_SIZE}`);
-    }
     return buf;
   }
 
   async function fetchChasers() {
     const res = await fetch("/bin");
     if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      throw new Error(`GET /bin failed: ${res.status} ${res.statusText}${text ? ` — ${text}` : ""}`);
+      return null;
     }
     const buf = await res.arrayBuffer();
     if (buf.byteLength === 0) return [];
@@ -412,6 +400,7 @@ var ChaserControl = function() {
   }
   
   function appendChasers(dataArray) {
+    if(!dataArray || !dataArray.byteLength) return;
     const dataView = new DataView(dataArray);
     const count = dataArray.byteLength / 32;
     for(let i=0;i<count;i++) {
@@ -427,7 +416,7 @@ var ChaserControl = function() {
       gatherAndSendValues();
     }
     let u8 = (i)=>dataView.getUint8(base+i);
-    let u16 = (i)=>dataView.getUint16(base+i,1);
+    let u16 = (i)=>dataView.getUint16(base+i,true);
     let i8 = (i)=>dataView.getInt8(base+i);
     let chaserEntry = Dyna.div("csr","",null,[
       getUpdatedColorField(u8(0),u8(1),u8(2)),
@@ -485,7 +474,7 @@ var ChaserControl = function() {
     gatherColorValue(chaserElement[3], dataView, baseOffset+9);
     gatherColorValue(chaserElement[4], dataView, baseOffset+12);
     gatherColorValue(chaserElement[5], dataView, baseOffset+15);
-    dataView.setUint16(baseOffset+18,getValue(chaserElement[6]));
+    dataView.setUint16(baseOffset+18,getValue(chaserElement[6]),true);
     dataView.setInt8(baseOffset+20,getValue(chaserElement[7]));
     dataView.setUint8(baseOffset+21,getValue(chaserElement[8]));
     dataView.setUint8(baseOffset+22,getValue(chaserElement[9]));
