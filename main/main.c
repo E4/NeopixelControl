@@ -39,6 +39,7 @@
 static httpd_handle_t start_webserver(void);
 static void stop_webserver(void);
 static esp_err_t server_request_handler_get(httpd_req_t *req);
+static esp_err_t server_request_handler_get_bin(httpd_req_t *req);
 static esp_err_t server_request_handler_post(httpd_req_t *req);
 static void move_chasers();
 static uint32_t get_interpolated_rgb_for_chaser(chaser_data_t *data);
@@ -57,6 +58,7 @@ int8_t chaser_count = 0;
 
 static httpd_handle_t server = NULL;
 static const char index_html_template[] = "<!DOCTYPE html><html><head><title>Chasers</title><style>body {background:black;color:white;font-family:sans-serif;max-width:100vh;margin:auto;padding:2%;}.c, .n {display:inline-block;margin:2vmin 0 0 0;font-size:4vmin;color:goldenrod;width:calc(100%/3);}.c {width:calc(100%/6);}.v {border-radius:1px;display:inline-block;width:100%;padding: 0;text-align:center;box-sizing: border-box;background:black;color:silver;font-size:7vmin;}.v[type=\"color\"] {height:12vmin;width:100%;}.r,.a {border-radius:2vmin;background:goldenrod;color:white;border:1px solid gray;}.r {width:40%;font-size:4vmin;margin:4vmin 0 7vmin 30%;background:red;}.a {padding:2vmin;width:40%;font-size:4vmin;margin:4vmin 0 7vmin 30%;background:goldenrod;}</style><script>var u=new Set([\"tagName\",\"element\",\"children\"]);function w(b,e=null){if(Array.isArray(b))for(let d=0;d<b.length;d++)x(b[d],e,d);else x(b,e)}function y(b,e){function d(){return f}function m(g){if(g==f)return f;f=g;w(b,null);return f}var f=b[e];return{set:u.has(e)?d:m,get:function(){return f}}}function x(b,e,d=null){if(b!=null){b.children==null&&(b.children=[]);if(!b.element){b.element=document.createElement(b.tagName);for(var m in b)Object.defineProperty(b,m,y(b,m));e&&B(b.element,e,d)}e&&b.element.parentElement!=e?B(b.element,e,d):e&&d!=null&&e.children[d]!=b.element&&B(b.element,e,d);b.children==null&&(b.children=[]);e={};for(var f in b)if(!u.has(f))if(f==\"text\")if(d=b.element,m=b.text,d.childNodes.length>0)for(let k=0;k<d.childNodes.length;k++){if(d.childNodes[k].nodeType==3){d.childNodes[k].textContent!=m&&(d.childNodes[k].textContent=m);break}}else d.innerText!=m&&(d.innerText=m);else f==\"class\"?b.element.className!=b[\"class\"]&&(b.element.className=b[\"class\"]):f.startsWith(\"on-\")?e[f.substring(3)]=b[f]:b.element[f]!=b[f]&&(b.element[f]=b[f]);f=b.element;d=f.h;d||(f.h=d={});for(var g in d)g in e&&d[g]==e[g]||g in e&&d[g]==e[g]||(f.removeEventListener(g,d[g]),delete d[g]);for(let k in e)k in d||(f.addEventListener(k,e[k]),d[k]=e[k]);g=b.element.g;var q;g||(b.element.g=g=[]);if(\"children\"in b)for(var n in b.children)x(b.children[n],b.element,n),g.indexOf(b.children[n])==-1&&g.push(b.children[n]);for(n=g.length-1;n>=0;n--)b.children.indexOf(g[n])==-1&&(q=g.splice(n,1)[0])&&q.element.remove()}}function B(b,e,d=null){d==null||d>=e.children.length?e.appendChild(b):e.insertBefore(b,e.children[d])}function C(b,e,d,m,f){b={tagName:b,\"class\":e,text:d,children:f};for(let g in m)b[g]=m[g];return b}var D=(b,e=null,d=[])=>C(\"div\",b,e,null,d),E=(b,e=null,d=null)=>C(\"button\",b,e,d,[]);function F(b,e,d,m=[]){var f={tagName:\"input\",\"class\":b,type:e,children:m};for(let q in d)f[q]=d[q];var g=f[\"on-change\"];f[\"on-change\"]=q=>{f.value=q.target.value;g&&g(q)};return f}function G(b,e,d){b={tagName:\"label\",\"class\":b,text:e,children:d};for(let m in null)b[m]=null[m];return b}function H(){async function b(a){a=new Uint8Array(a);a=await fetch(\"/\",{method:\"POST\",headers:{\"Content-Type\":\"application/octet-stream\"},body:a});if(!a.ok){const c=await a.text().catch(()=>\"\");throw Error(`POST failed: ${a.status} ${a.statusText}${c?` \u2014 ${c}`:\"\"}`);}return a}function e(a){if(!(a instanceof ArrayBuffer))if(a instanceof Uint8Array)a=a.buffer.slice(a.byteOffset,a.byteOffset+a.byteLength);else throw Error(\"Input must be ArrayBuffer or Uint8Array\");if(a.byteLength%32!==0)throw Error(`Invalid blob length ${a.byteLength}, not multiple of ${32}`);return a}function d(a){const c=new DataView(a);a=a.byteLength/32;for(let h=0;h<a;h++)m(c,h*32)}function m(a,c){let h=D(\"csr\",\"\",[g(a.getUint8(c+0),a.getUint8(c+1),a.getUint8(c+2)),g(a.getUint8(c+3),a.getUint8(c+4),a.getUint8(c+5)),g(a.getUint8(c+6),a.getUint8(c+7),a.getUint8(c+8)),g(a.getUint8(c+9),a.getUint8(c+10),a.getUint8(c+11)),g(a.getUint8(c+12),a.getUint8(c+13),a.getUint8(c+14)),g(a.getUint8(c+15),a.getUint8(c+16),a.getUint8(c+17)),f(\"Position Offset\",z,a.getUint16(c+18,1)),f(\"Position Speed\",I,a.getInt8(c+20)),f(\"Position Delay\",t,a.getUint8(c+23)),f(\"Color Offset\",t,a.getUint8(c+21)),f(\"Color Speed\",t,a.getUint8(c+22)),f(\"Color Delay\",t,a.getUint8(c+24)),f(\"Repeat\",t,a.getUint8(c+25)),f(\"Limit Low\",z,a.getUint16(c+26,1)),f(\"Limit High\",z,a.getUint16(c+28,1)),E(\"r\",\"remove\",{\"on-click\":function(){let l=r.indexOf(h);l!=-1&&r.splice(l,1);w(A,null);q()}})]);r.push(h);w(A,null)}function f(a,c,h){c=[...c];c[2].value=h.toString();c[2][\"on-change\"]=q;return G(\"n\",a,[F(...c)])}function g(a,c,h){var l=[...J];l[2].value=\"#\"+a.toString(16).padStart(2,\"0\")+c.toString(16).padStart(2,\"0\")+h.toString(16).padStart(2,\"0\");l[2][\"on-change\"]=q;return G(\"c\",null,[F(...l)])}function q(){var a=new ArrayBuffer(r.length*32),c=new DataView(a);for(let v=0;v<r.length;v++){var h=r[v].children,l=c,p=v*32;n(h[0],l,p+0);n(h[1],l,p+3);n(h[2],l,p+6);n(h[3],l,p+9);n(h[4],l,p+12);n(h[5],l,p+15);l.setUint16(p+18,k(h[6]));l.setInt8(p+20,k(h[7]));l.setUint8(p+21,k(h[8]));l.setUint8(p+22,k(h[9]));l.setUint8(p+23,k(h[10]));l.setUint8(p+24,k(h[11]));l.setUint8(p+25,k(h[12]));l.setUint8(p+26,k(h[13]));l.setUint8(p+28,k(h[14]))}b(a)}function n(a,c,h){a=k(a);c.setUint8(h+0,parseInt(a.slice(1,3),16));c.setUint8(h+1,parseInt(a.slice(3,5),16));c.setUint8(h+2,parseInt(a.slice(5,7),16))}function k(a){return a.children.length?a.children[0].value:null}const z=[\"v\",\"number\",{min:\"0\",max:\"65535\",value:\"0\"}],t=[\"v\",\"number\",{min:\"0\",max:\"255\",value:\"0\"}],I=[\"v\",\"number\",{min:\"-128\",max:\"127\",value:\"0\"}],J=[\"v\",\"color\",{value:\"#000000\"}];let r,A=D(\"\",null,r=[]),K=D(\"\",null,[A,E(\"a\",\"add\",{\"on-click\":function(){d(new ArrayBuffer(32));q()}})]);w(K,document.body);(async function(){var a=await fetch(\"/bin\");if(!a.ok){const c=await a.text().catch(()=>\"\");throw Error(`GET /bin failed: ${a.status} ${a.statusText}${c?` \u2014 ${c}`:\"\"}`);}a=await a.arrayBuffer();return a.byteLength===0?[]:e(a)})().then(d)}window.addEventListener(\"load\",()=>new H);</script></head><body></body></html>";
+
 
 static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
   if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
@@ -98,6 +100,7 @@ static void init_wifi() {
   esp_wifi_connect();
 }
 
+
 static void set_leds_int(uint32_t c) {
   for(int i=0;i<CONFIG_LED_COUNT;i++) {
     chaser_pixel[i].index = i;
@@ -105,6 +108,7 @@ static void set_leds_int(uint32_t c) {
   }
   neopixel_SetPixel(neopixel, chaser_pixel, ARRAY_SIZE(chaser_pixel));
 }
+
 
 static void flash_leds_int(uint32_t c) {
   set_leds_int(c);
@@ -153,6 +157,25 @@ static void move_chasers() {
       neopixel_SetPixel(neopixel, chaser_pixel, 1);
     }
   }
+}
+
+
+static esp_err_t server_request_handler_get(httpd_req_t *req) {
+  httpd_resp_set_type(req, "text/html");
+  httpd_resp_send(req, index_html_template, sizeof(index_html_template));
+  return ESP_OK;
+}
+
+
+static esp_err_t server_request_handler_get_bin(httpd_req_t *req) {
+  httpd_resp_set_type(req, "application/octet-stream");
+
+  if (chaser_count <= 0 || chaser_data == NULL) {
+    return httpd_resp_send(req, NULL, 0);
+  }
+
+  size_t data_len = (size_t)chaser_count * sizeof(chaser_data_t);
+  return httpd_resp_send(req, (const char *)chaser_data, data_len);
 }
 
 
@@ -210,12 +233,6 @@ static esp_err_t server_request_handler_post(httpd_req_t *req) {
   return ESP_OK;
 }
 
-static esp_err_t server_request_handler_get(httpd_req_t *req) {
-  httpd_resp_set_type(req, "text/html");
-  httpd_resp_send(req, index_html_template, sizeof(index_html_template));
-  return ESP_OK;
-}
-
 
 static httpd_handle_t start_webserver(void)
 {
@@ -230,6 +247,12 @@ static httpd_handle_t start_webserver(void)
       .handler = server_request_handler_get,
       .user_ctx = NULL
     };
+    httpd_uri_t get_bin_uri = {
+      .uri = "/bin",
+      .method = HTTP_GET,
+      .handler = server_request_handler_get_bin,
+      .user_ctx = NULL
+    };
     httpd_uri_t post_uri = {
       .uri = "/",
       .method = HTTP_POST,
@@ -237,6 +260,7 @@ static httpd_handle_t start_webserver(void)
       .user_ctx = NULL
     };
     httpd_register_uri_handler(server, &get_uri);
+    httpd_register_uri_handler(server, &get_bin_uri);
     httpd_register_uri_handler(server, &post_uri);
   }
   return server;
@@ -249,9 +273,6 @@ static void stop_webserver(void) {
     server = NULL;
   }
 }
-
-
-
 
 
 void app_main(void) {
