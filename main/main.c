@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -51,7 +52,7 @@ static esp_err_t server_request_handler_get_js(httpd_req_t *req);
 static esp_err_t server_request_handler_get_bin(httpd_req_t *req);
 static esp_err_t server_request_handler_post(httpd_req_t *req);
 static void move_chasers();
-static void set_pixels_for_chaser(chaser_data_t chaser, uint32_t color);
+static void set_pixels_for_chaser(chaser_data_t *chaser, uint32_t color, bool clear_previous, uint16_t previous_offset);
 static uint32_t get_interpolated_rgb_for_chaser(chaser_data_t *data);
 static void set_leds_int(uint32_t c);
 static void flash_leds_int(uint32_t c);
@@ -62,7 +63,7 @@ static void init_wifi();
 static tNeopixelContext neopixel;
 static uint32_t refreshRate, taskDelay;
 chaser_data_t *chaser_data = NULL;
-tNeopixel chaser_pixel[CONFIG_LED_COUNT];
+tNeopixel chaser_pixel[CONFIG_LED_COUNT * 2];
 int8_t chaser_count = 0;
 static SemaphoreHandle_t chaser_data_mutex = NULL;
 
@@ -157,10 +158,15 @@ static void move_chasers() {
   static uint32_t frame;
   static int16_t i;
   static uint16_t new_position_offset;
+  static uint16_t previous_position_offset;
+  static bool moved_this_frame;
+  static uint32_t chaser_color;
 
   if (chaser_count <= 0 || chaser_data == NULL) return;
   if(++frame==0) frame=1;
   for(i=0;i<chaser_count;i++) {
+    moved_this_frame = false;
+    previous_position_offset = chaser_data[i].position_offset;
 
     if(frame%chaser_data[i].position_delay==0) {
       if(chaser_data[i].flags&FLAG_RANDOM_POSITION) {
@@ -169,11 +175,10 @@ static void move_chasers() {
         new_position_offset = (uint16_t)positive_mod((int)chaser_data[i].position_offset + chaser_data[i].position_speed, chaser_data[i].range_length);
       }
 
-      if((chaser_data[i].flags&FLAG_CLEAR_PREVIOUS)&&new_position_offset!=chaser_data[i].position_offset) {
-        set_pixels_for_chaser(chaser_data[i],0);
+      if(new_position_offset!=chaser_data[i].position_offset) {
+        moved_this_frame = true;
+        chaser_data[i].position_offset = new_position_offset;
       }
-
-      chaser_data[i].position_offset = new_position_offset;
     } else {
       if(chaser_data[i].flags&FLAG_NO_MOVE_NO_SET) return;
     }
@@ -186,27 +191,50 @@ static void move_chasers() {
         chaser_data[i].color_offset = (chaser_data[i].color_offset + chaser_data[i].color_speed) % 240;
       }
     }
-    set_pixels_for_chaser(chaser_data[i],get_interpolated_rgb_for_chaser(&chaser_data[i]));
+
+    chaser_color = get_interpolated_rgb_for_chaser(&chaser_data[i]);
+    set_pixels_for_chaser(&chaser_data[i], chaser_color, moved_this_frame && (chaser_data[i].flags&FLAG_CLEAR_PREVIOUS), previous_position_offset);
   }
 
 }
 
 
-static void set_pixels_for_chaser(chaser_data_t chaser, uint32_t chaser_color) {
+static void set_pixels_for_chaser(chaser_data_t *chaser, uint32_t chaser_color, bool clear_previous, uint16_t previous_offset) {
   static int16_t repeats;
   static int16_t r;
-  if(chaser.repeat) {
-    repeats = chaser.range_length/chaser.repeat;
-    for(r=0;r<repeats;r++) {
-      chaser_pixel[r].index = ((chaser.position_offset + chaser.repeat * r) % chaser.range_length) + chaser.range_offset;
-      chaser_pixel[r].rgb = chaser_color;
+  static int16_t pixel_index;
+
+  pixel_index = 0;
+
+  if(clear_previous) {
+    if(chaser->repeat) {
+      repeats = chaser->range_length/chaser->repeat;
+      for(r=0;r<repeats;r++) {
+        chaser_pixel[pixel_index].index = ((previous_offset + chaser->repeat * r) % chaser->range_length) + chaser->range_offset;
+        chaser_pixel[pixel_index].rgb = 0;
+        pixel_index++;
+      }
+    } else {
+      chaser_pixel[pixel_index].index = previous_offset + chaser->range_offset;
+      chaser_pixel[pixel_index].rgb = 0;
+      pixel_index++;
     }
-    neopixel_SetPixel(neopixel, chaser_pixel, r);
-  } else {
-    chaser_pixel[0].index = chaser.position_offset + chaser.range_offset;
-    chaser_pixel[0].rgb = chaser_color;
-    neopixel_SetPixel(neopixel, chaser_pixel, 1);
   }
+
+  if(chaser->repeat) {
+    repeats = chaser->range_length/chaser->repeat;
+    for(r=0;r<repeats;r++) {
+      chaser_pixel[pixel_index].index = ((chaser->position_offset + chaser->repeat * r) % chaser->range_length) + chaser->range_offset;
+      chaser_pixel[pixel_index].rgb = chaser_color;
+      pixel_index++;
+    }
+  } else {
+    chaser_pixel[pixel_index].index = chaser->position_offset + chaser->range_offset;
+    chaser_pixel[pixel_index].rgb = chaser_color;
+    pixel_index++;
+  }
+
+  neopixel_SetPixel(neopixel, chaser_pixel, pixel_index);
 }
 
 
