@@ -27,5 +27,7 @@ echo Compiling
 java -jar "$latest_compiler" \
   --compilation_level ADVANCED_OPTIMIZATIONS \
   --strict_mode_input \
-  --js index.js \
-  --js_output_file index.min.js
+  --js main.js \
+  --js_output_file j.js
+
+sed -e 's/^[ \t]\+//' style.css | tr -d '\n\r\t' > s.css

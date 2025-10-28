@@ -241,7 +241,7 @@ Dyna.input = function(cls, type, options, kids=[]) {
   }
   for(let o in options) rv[o] = options[o];
   var requestedOnChange = rv["on-change"];
-  rv["on-change"] = (e)=>{rv.value = e.target.value;requestedOnChange?requestedOnChange(e):noop()};
+  rv["on-change"] = (e)=>{rv.value = e.target.value;if(rv.checked!=undefined) rv.checked=e.target.checked;requestedOnChange?requestedOnChange(e):noop()};
   return rv;
 }
 
@@ -418,7 +418,7 @@ var ChaserControl = function() {
     let u8 = (i)=>dataView.getUint8(base+i);
     let u16 = (i)=>dataView.getUint16(base+i,true);
     let i8 = (i)=>dataView.getInt8(base+i);
-    let chaserEntry = Dyna.div("csr","",null,[
+    let chaserEntry = Dyna.div("h","",null,[
       getUpdatedColorField(u8(0),u8(1),u8(2)),
       getUpdatedColorField(u8(3),u8(4),u8(5)),
       getUpdatedColorField(u8(6),u8(7),u8(8)),
@@ -434,10 +434,29 @@ var ChaserControl = function() {
       getGenericNumberField('Repeat', uint8_t, u8(25)),
       getGenericNumberField('Range Length', uint16_t, u16(26)),
       getGenericNumberField('Range Offset', uint16_t, u16(28)),
+      ...getFlagCheckboxes(u8(30)),
       Dyna.butt("r","remove",{"on-click":removeThese})
     ]);
     fieldContainerChildren.push(chaserEntry);
     Dyna.update(fieldContainer);
+  }
+
+  function getFlagCheckboxes(flagValues) {
+    console.log(flagValues & 1);
+    return [
+      inputCheckbox(  "Clear Previous",   flagValues & 1),
+      inputCheckbox( "Random Position",   flagValues & 2),
+      inputCheckbox(    "Random Color",   flagValues & 4),
+      inputCheckbox(  "Delayed Update",   flagValues & 8),
+      inputCheckbox(                "",  flagValues & 16),
+      inputCheckbox(                "",  flagValues & 32),
+      inputCheckbox(                "",  flagValues & 64),
+      inputCheckbox(                "", flagValues & 128),
+    ];
+  }
+
+  function inputCheckbox(labelText,boxIsChecked) {
+    return Dyna.label("l",labelText,"",[Dyna.input("x","checkbox",{"on-change":gatherAndSendValues,"checked":!!boxIsChecked})]);
   }
 
   function getGenericNumberField(fieldLabel, fieldType, value) {
@@ -459,6 +478,7 @@ var ChaserControl = function() {
   }
 
   function gatherAndSendValues() {
+    console.log("sending")
     var arrayBuffer = new ArrayBuffer(fieldContainerChildren.length*32);
     var dataView = new DataView(arrayBuffer);
     for(let i=0;i<fieldContainerChildren.length;i++) {
@@ -483,6 +503,7 @@ var ChaserControl = function() {
     dataView.setUint8(baseOffset+25,getValue(chaserElement[12]));
     dataView.setUint16(baseOffset+26,getValue(chaserElement[13]),true);
     dataView.setUint16(baseOffset+28,getValue(chaserElement[14]),true);
+    dataView.setUint8(baseOffset+30,getFlagValues(chaserElement));
   }
 
   function gatherColorValue(colorElement, dataView, positionOffset) {
@@ -495,6 +516,19 @@ var ChaserControl = function() {
   function getValue(labeledElement) {
     if(!labeledElement["children"].length) return null;
     return labeledElement["children"][0].value;
+  }
+
+  function getFlagValues(chaserElements) {
+    return (
+      chaserElements[15]["children"][0].checked*1+
+      chaserElements[16]["children"][0].checked*2+
+      chaserElements[17]["children"][0].checked*4+
+      chaserElements[18]["children"][0].checked*8+
+      chaserElements[19]["children"][0].checked*16+
+      chaserElements[20]["children"][0].checked*32+
+      chaserElements[21]["children"][0].checked*64+
+      chaserElements[22]["children"][0].checked*128
+    );
   }
 
   Dyna.create(outerContainer,document.body);

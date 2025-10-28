@@ -46,6 +46,8 @@ static inline int positive_mod(int value, int mod) {
 static httpd_handle_t start_webserver(void);
 static void stop_webserver(void);
 static esp_err_t server_request_handler_get(httpd_req_t *req);
+static esp_err_t server_request_handler_get_css(httpd_req_t *req);
+static esp_err_t server_request_handler_get_js(httpd_req_t *req);
 static esp_err_t server_request_handler_get_bin(httpd_req_t *req);
 static esp_err_t server_request_handler_post(httpd_req_t *req);
 static void move_chasers();
@@ -66,7 +68,17 @@ static SemaphoreHandle_t chaser_data_mutex = NULL;
 
 
 static httpd_handle_t server = NULL;
-static const char index_html_template[] = "<!DOCTYPE html><html><head><title>Chasers</title><style>body {background:black;color:white;font-family:sans-serif;max-width:100vh;margin:auto;padding:2%;}.c, .n {display:inline-block;margin:2vmin 0 0 0;font-size:4vmin;color:goldenrod;width:calc(100%/3);}.c {width:calc(100%/6);}.v {border-radius:1px;display:inline-block;width:100%;padding: 0;text-align:center;box-sizing: border-box;background:black;color:silver;font-size:7vmin;}.v[type=\"color\"] {height:12vmin;width:100%;}.r,.a {border-radius:2vmin;background:goldenrod;color:white;border:1px solid gray;}.r {width:40%;font-size:4vmin;margin:4vmin 0 7vmin 30%;background:red;}.a {padding:2vmin;width:40%;font-size:4vmin;margin:4vmin 0 7vmin 30%;background:goldenrod;}</style><script>var u=new Set([\"tagName\",\"element\",\"children\"]);function w(a,e=null){if(Array.isArray(a))for(let d=0;d<a.length;d++)x(a[d],e,d);else x(a,e)}function y(a,e){function d(){return f}function k(g){if(g==f)return f;f=g;w(a,null);return f}var f=a[e];return{set:u.has(e)?d:k,get:function(){return f}}}function x(a,e,d=null){if(a!=null){a.children==null&&(a.children=[]);if(!a.element){a.element=document.createElement(a.tagName);for(var k in a)Object.defineProperty(a,k,y(a,k));e&&A(a.element,e,d)}e&&a.element.parentElement!=e?A(a.element,e,d):e&&d!=null&&e.children[d]!=a.element&&A(a.element,e,d);a.children==null&&(a.children=[]);e={};for(var f in a)if(!u.has(f))if(f==\"text\")if(d=a.element,k=a.text,d.childNodes.length>0)for(let n=0;n<d.childNodes.length;n++){if(d.childNodes[n].nodeType==3){d.childNodes[n].textContent!=k&&(d.childNodes[n].textContent=k);break}}else d.innerText!=k&&(d.innerText=k);else f==\"class\"?a.element.className!=a[\"class\"]&&(a.element.className=a[\"class\"]):f.startsWith(\"on-\")?e[f.substring(3)]=a[f]:a.element[f]!=a[f]&&(a.element[f]=a[f]);f=a.element;d=f.h;d||(f.h=d={});for(var g in d)g in e&&d[g]==e[g]||g in e&&d[g]==e[g]||(f.removeEventListener(g,d[g]),delete d[g]);for(let n in e)n in d||(f.addEventListener(n,e[n]),d[n]=e[n]);g=a.element.g;var p;g||(a.element.g=g=[]);if(\"children\"in a)for(var m in a.children)x(a.children[m],a.element,m),g.indexOf(a.children[m])==-1&&g.push(a.children[m]);for(m=g.length-1;m>=0;m--)a.children.indexOf(g[m])==-1&&(p=g.splice(m,1)[0])&&p.element.remove()}}function A(a,e,d=null){d==null||d>=e.children.length?e.appendChild(a):e.insertBefore(a,e.children[d])}function B(a,e,d,k,f){a={tagName:a,\"class\":e,text:d,children:f};for(let g in k)a[g]=k[g];return a}var C=(a,e=null,d=[])=>B(\"div\",a,e,null,d),D=(a,e=null,d=null)=>B(\"button\",a,e,d,[]);function E(a,e,d,k=[]){var f={tagName:\"input\",\"class\":a,type:e,children:k};for(let p in d)f[p]=d[p];var g=f[\"on-change\"];f[\"on-change\"]=p=>{f.value=p.target.value;g&&g(p)};return f}function F(a,e,d){a={tagName:\"label\",\"class\":a,text:e,children:d};for(let k in null)a[k]=null[k];return a}function G(){async function a(b){b=new Uint8Array(b);return await fetch(\"/\",{method:\"POST\",headers:{\"Content-Type\":\"application/octet-stream\"},body:b})}function e(b){if(b&&b.byteLength){var c=new DataView(b);b=b.byteLength/32;for(let h=0;h<b;h++)d(c,h*32)}}function d(b,c){let h=C(\"csr\",\"\",[f(b.getUint8(c+0),b.getUint8(c+1),b.getUint8(c+2)),f(b.getUint8(c+3),b.getUint8(c+4),b.getUint8(c+5)),f(b.getUint8(c+6),b.getUint8(c+7),b.getUint8(c+8)),f(b.getUint8(c+9),b.getUint8(c+10),b.getUint8(c+11)),f(b.getUint8(c+12),b.getUint8(c+13),b.getUint8(c+14)),f(b.getUint8(c+15),b.getUint8(c+16),b.getUint8(c+17)),k(\"Position Offset\",n,b.getUint16(c+18,!0)),k(\"Position Skip\",H,b.getInt8(c+20)),k(\"Position Delay\",t,b.getUint8(c+21)),k(\"Color Offset\",t,b.getUint8(c+22)),k(\"Color Skip\",t,b.getUint8(c+23)),k(\"Color Delay\",t,b.getUint8(c+24)),k(\"Repeat\",t,b.getUint8(c+25)),k(\"Range Length\",n,b.getUint16(c+26,!0)),k(\"Range Offset\",n,b.getUint16(c+28,!0)),D(\"r\",\"remove\",{\"on-click\":function(){let l=r.indexOf(h);l!=-1&&r.splice(l,1);w(z,null);g()}})]);r.push(h);w(z,null)}function k(b,c,h){c=[...c];c[2].value=h.toString();c[2][\"on-change\"]=g;return F(\"n\",b,[E(...c)])}function f(b,c,h){var l=[...I];l[2].value=\"#\"+b.toString(16).padStart(2,\"0\")+c.toString(16).padStart(2,\"0\")+h.toString(16).padStart(2,\"0\");l[2][\"on-change\"]=g;return F(\"c\",null,[E(...l)])}function g(){var b=new ArrayBuffer(r.length*32),c=new DataView(b);for(let v=0;v<r.length;v++){var h=r[v].children,l=c,q=v*32;p(h[0],l,q+0);p(h[1],l,q+3);p(h[2],l,q+6);p(h[3],l,q+9);p(h[4],l,q+12);p(h[5],l,q+15);l.setUint16(q+18,m(h[6]),!0);l.setInt8(q+20,m(h[7]));l.setUint8(q+21,m(h[8]));l.setUint8(q+22,m(h[9]));l.setUint8(q+23,m(h[10]));l.setUint8(q+24,m(h[11]));l.setUint8(q+25,m(h[12]));l.setUint16(q+26,m(h[13]),!0);l.setUint16(q+28,m(h[14]),!0)}a(b)}function p(b,c,h){b=m(b);c.setUint8(h+0,parseInt(b.slice(1,3),16));c.setUint8(h+1,parseInt(b.slice(3,5),16));c.setUint8(h+2,parseInt(b.slice(5,7),16))}function m(b){return b.children.length?b.children[0].value:null}const n=[\"v\",\"number\",{min:\"0\",max:\"65535\",value:\"0\"}],t=[\"v\",\"number\",{min:\"0\",max:\"255\",value:\"0\"}],H=[\"v\",\"number\",{min:\"-128\",max:\"127\",value:\"0\"}],I=[\"v\",\"color\",{value:\"#000000\"}];let r,z=C(\"\",null,r=[]),J=C(\"\",null,[z,D(\"a\",\"add\",{\"on-click\":function(){e(new ArrayBuffer(32));g()}})]);w(J,document.body);(async function(){var b=await fetch(\"/bin\");if(!b.ok)return null;b=await b.arrayBuffer();var c;b.byteLength===0?c=[]:b instanceof ArrayBuffer?c=b:b instanceof Uint8Array&&(c=b.buffer.slice(b.byteOffset,b.byteOffset+b.byteLength));return c})().then(e)}window.addEventListener(\"load\",()=>new G);</script></head><body></body></html>";
+
+extern const uint8_t html_start[]        asm("_binary_index_min_html_start");
+extern const uint8_t html_end[]          asm("_binary_index_min_html_end");
+
+extern const uint8_t css_start[] asm("_binary_s_css_start");
+extern const uint8_t css_end[]   asm("_binary_s_css_end");
+
+extern const uint8_t javascript_start[]  asm("_binary_j_js_start");
+extern const uint8_t javascript_end[]    asm("_binary_j_js_end");
+
+//static const char index_html_template[] = "<!DOCTYPE html><html><head><title>Chasers</title><link rel=\"stylesheet\" href=\"d.css\" media=\"(min-width: 801px)\"><link rel=\"stylesheet\" href=\"m.css\" media=\"(max-width: 800px)\"><link rel=\"icon\" href=\"data:;base64,iVBORw0KGgo=\"><script src=\"j.js\"></script></head></html>";
 
 static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
   if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
@@ -151,24 +163,24 @@ static void move_chasers() {
   for(i=0;i<chaser_count;i++) {
 
     if(frame%chaser_data[i].position_delay==0) {
-      if(chaser_data[i].flags&FLAG_RANDOM_POSITION||true) {
+      if(chaser_data[i].flags&FLAG_RANDOM_POSITION) {
         new_position_offset = esp_random()%chaser_data[i].range_length;
       } else {
         new_position_offset = (uint16_t)positive_mod((int)chaser_data[i].position_offset + chaser_data[i].position_speed, chaser_data[i].range_length);
       }
 
-      if((chaser_data[i].flags&FLAG_CLEAR_PREVIOUS||true)&&new_position_offset!=chaser_data[i].position_offset) {
+      if((chaser_data[i].flags&FLAG_CLEAR_PREVIOUS)&&new_position_offset!=chaser_data[i].position_offset) {
         set_pixels_for_chaser(chaser_data[i],0);
       }
 
       chaser_data[i].position_offset = new_position_offset;
     } else {
-      if(chaser_data[i].flags&FLAG_NO_MOVE_NO_SET||true) return;
+      if(chaser_data[i].flags&FLAG_NO_MOVE_NO_SET) return;
     }
 
 
     if(frame%chaser_data[i].color_delay==0) {
-      if(chaser_data[i].flags&FLAG_RANDOM_COLOR||true) {
+      if(chaser_data[i].flags&FLAG_RANDOM_COLOR) {
         chaser_data[i].color_offset = esp_random() % 240;
       } else {
         chaser_data[i].color_offset = (chaser_data[i].color_offset + chaser_data[i].color_speed) % 240;
@@ -200,7 +212,21 @@ static void set_pixels_for_chaser(chaser_data_t chaser, uint32_t chaser_color) {
 
 static esp_err_t server_request_handler_get(httpd_req_t *req) {
   httpd_resp_set_type(req, "text/html");
-  httpd_resp_send(req, index_html_template, sizeof(index_html_template));
+  httpd_resp_send(req, (const char*)html_start, html_end - html_start - 1);
+  return ESP_OK;
+}
+
+
+static esp_err_t server_request_handler_get_css(httpd_req_t *req) {
+  httpd_resp_set_type(req, "text/css");
+  httpd_resp_send(req, (const char*)css_start, css_end - css_start - 1);
+  return ESP_OK;
+}
+
+
+static esp_err_t server_request_handler_get_js(httpd_req_t *req) {
+  httpd_resp_set_type(req, "application/javascript");
+  httpd_resp_send(req, (const char*)javascript_start, javascript_end - javascript_start - 1);
   return ESP_OK;
 }
 
@@ -289,27 +315,12 @@ static httpd_handle_t start_webserver(void)
   config.stack_size = 8192;
   httpd_handle_t server = NULL;
   if (httpd_start(&server, &config) == ESP_OK) {
-    httpd_uri_t get_uri = {
-      .uri = "/",
-      .method = HTTP_GET,
-      .handler = server_request_handler_get,
-      .user_ctx = NULL
-    };
-    httpd_uri_t get_bin_uri = {
-      .uri = "/bin",
-      .method = HTTP_GET,
-      .handler = server_request_handler_get_bin,
-      .user_ctx = NULL
-    };
-    httpd_uri_t post_uri = {
-      .uri = "/",
-      .method = HTTP_POST,
-      .handler = server_request_handler_post,
-      .user_ctx = NULL
-    };
-    httpd_register_uri_handler(server, &get_uri);
-    httpd_register_uri_handler(server, &get_bin_uri);
-    httpd_register_uri_handler(server, &post_uri);
+    httpd_register_uri_handler(server, &(httpd_uri_t){ .uri =      "/", .method =  HTTP_GET, .handler =     server_request_handler_get, .user_ctx = NULL });
+    httpd_register_uri_handler(server, &(httpd_uri_t){ .uri = "/s.css", .method =  HTTP_GET, .handler = server_request_handler_get_css, .user_ctx = NULL });
+    httpd_register_uri_handler(server, &(httpd_uri_t){ .uri =  "/j.js", .method =  HTTP_GET, .handler =  server_request_handler_get_js, .user_ctx = NULL });
+    httpd_register_uri_handler(server, &(httpd_uri_t){ .uri =   "/bin", .method =  HTTP_GET, .handler = server_request_handler_get_bin, .user_ctx = NULL });
+    httpd_register_uri_handler(server, &(httpd_uri_t){ .uri =      "/", .method = HTTP_POST, .handler =    server_request_handler_post, .user_ctx = NULL });
+
   }
   return server;
 }

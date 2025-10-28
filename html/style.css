@@ -5,13 +5,13 @@ body {
   max-width:100vh;
   margin:auto;
   padding:2%;
+  color:goldenrod;
+  text-align:center;
 }
 
-.c, .n {
+.c, .n, .l  {
   display:inline-block;
   margin:2vmin 0 0 0;
-  font-size:4vmin;
-  color:goldenrod;
   width:calc(100%/3);
 }
 
@@ -46,7 +46,7 @@ body {
 .r {
   width:40%;
   font-size:4vmin;
-  margin:4vmin 0 7vmin 30%;
+  margin:4vmin 0 7vmin 0;
   background:red;
 }
 
@@ -54,6 +54,17 @@ body {
   padding:2vmin;
   width:40%;
   font-size:4vmin;
-  margin:4vmin 0 7vmin 30%;
+  margin:4vmin 0 0 0;
   background:goldenrod;
+}
+
+.l {
+  width:calc(100% / 8);
+}
+
+.x {
+  margin:0;
+  width:100%;;
+  aspect-ratio:2;
+  border: 5px solid red;
 }
