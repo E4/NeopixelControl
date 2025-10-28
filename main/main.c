@@ -134,6 +134,7 @@ static void flash_leds_int(uint32_t c) {
   set_leds_int(c);
   vTaskDelay(taskDelay);
   set_leds_int(0);
+  vTaskDelay(taskDelay);
 }
 
 
@@ -342,7 +343,11 @@ void app_main(void) {
   }
 
   refreshRate = neopixel_GetRefreshRate(neopixel);
-  taskDelay = MAX(1, pdMS_TO_TICKS(1000UL / refreshRate));
+  if (refreshRate == 0) {
+    taskDelay = 1;
+  } else {
+    taskDelay = MAX((TickType_t)1, (TickType_t)((configTICK_RATE_HZ + refreshRate - 1) / refreshRate));
+  }
 
   chaser_data_mutex = xSemaphoreCreateMutex();
   if (chaser_data_mutex == NULL) {
@@ -354,17 +359,16 @@ void app_main(void) {
   nvs_flash_init();
   init_wifi();
 
-  flash_leds(255,0,0);
-  vTaskDelay(pdMS_TO_TICKS(500));
-  flash_leds(0,255,0);
-  vTaskDelay(pdMS_TO_TICKS(500));
-  flash_leds(0,0,255);
-  vTaskDelay(pdMS_TO_TICKS(500));
-
   while(chaser_count == 0) {
     ESP_LOGI(TAG, "chaser count: %d", chaser_count);
-    flash_leds(4,4,4);
-    vTaskDelay(pdMS_TO_TICKS(500));
+    set_leds(4,0,0);
+    vTaskDelay(taskDelay);
+    set_leds(0,4,0);
+    vTaskDelay(taskDelay);
+    set_leds(0,0,4);
+    vTaskDelay(taskDelay);
+    set_leds(0,0,0);
+    vTaskDelay(pdMS_TO_TICKS(1000));
   }
 
   flash_leds(255,255,255);
