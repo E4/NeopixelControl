@@ -9,5 +9,11 @@ typedef struct  {
   uint8_t repeat;           //    25: Apply this to every n'th pixel (0 = no repeat)
   uint16_t range_length;    // 28-29: range length
   uint16_t range_offset;    // 26-27: range offset
-  uint16_t reserved;        // 30-31: reserved
+  uint8_t flags;            //    30: flags
+  uint8_t reserved;         //    31: reserved
 } chaser_data_t;
+
+#define FLAG_CLEAR_PREVIOUS   1
+#define FLAG_RANDOM_POSITION  2
+#define FLAG_RANDOM_COLOR     4
+#define FLAG_NO_MOVE_NO_SET   8
