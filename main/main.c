@@ -21,6 +21,8 @@
 
 #include "chaser_data.h"
 
+#include "debug.h"
+
 // define the following:
 // CONFIG_WIFI_SSID
 // CONFIG_WIFI_PASSWORD
@@ -83,16 +85,16 @@ extern const uint8_t javascript_end[]    asm("_binary_j_js_end");
 
 static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
   if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
-    ESP_LOGI(TAG, "WiFi starting");
+    DEBUG_LOGI(TAG, "WiFi starting");
     esp_wifi_connect();
   } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
-    ESP_LOGI(TAG, "WiFi disconnected");
+    DEBUG_LOGI(TAG, "WiFi disconnected");
     esp_wifi_connect();
     if (server) {
       stop_webserver();
     }
   } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
-    ESP_LOGI(TAG, "Got IP address");
+    DEBUG_LOGI(TAG, "Got IP address");
     if (server == NULL) {
       server = start_webserver();
     }
@@ -254,18 +256,18 @@ static esp_err_t server_request_handler_post(httpd_req_t *req) {
 
   const size_t total_len = req->content_len;
   if (total_len == 0) {
-    ESP_LOGI(TAG, "Received zero lenght data");
+    DEBUG_LOGI(TAG, "Received zero lenght data");
     return ESP_FAIL;
   }
 
   if (total_len % sizeof(chaser_data_t) != 0) {
-    ESP_LOGI(TAG, "Received data length is not multiple of chaser data length");
+    DEBUG_LOGI(TAG, "Received data length is not multiple of chaser data length");
     return ESP_FAIL;
   }
 
   chaser_data_t *new_data = malloc(total_len);
   if (new_data == NULL) {
-    ESP_LOGI(TAG, "Could not allocate enough memory for the data");
+    DEBUG_LOGI(TAG, "Could not allocate enough memory for the data");
     return ESP_ERR_NO_MEM;
   }
 
@@ -309,7 +311,7 @@ static esp_err_t server_request_handler_post(httpd_req_t *req) {
   if (chaser_data_mutex != NULL) {
     xSemaphoreGive(chaser_data_mutex);
   }
-  ESP_LOGI(TAG, "Received chaser data");
+  DEBUG_LOGI(TAG, "Received chaser data");
   return ESP_OK;
 }
 
@@ -343,7 +345,7 @@ static void stop_webserver(void) {
 void app_main(void) {
   neopixel = neopixel_Init(CONFIG_LED_COUNT, CONFIG_LED_GPIO);
   if(NULL == neopixel) {
-    ESP_LOGE(TAG, "Neopixel initialization failed");
+    DEBUG_LOGE(TAG, "Neopixel initialization failed");
     return;
   }
 
@@ -356,7 +358,7 @@ void app_main(void) {
 
   chaser_data_mutex = xSemaphoreCreateMutex();
   if (chaser_data_mutex == NULL) {
-    ESP_LOGE(TAG, "Failed to create chaser data mutex");
+    DEBUG_LOGE(TAG, "Failed to create chaser data mutex");
     return;
   }
 
@@ -365,7 +367,7 @@ void app_main(void) {
   init_wifi();
 
   while(chaser_count == 0) {
-    ESP_LOGI(TAG, "Waiting for chaser data");
+    DEBUG_LOGI(TAG, "Waiting for chaser data");
     set_leds(4,0,0);
     vTaskDelay(taskDelay);
     set_leds(0,4,0);

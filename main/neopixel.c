@@ -15,6 +15,8 @@
 #include "ws2182b_protocol.h"
 #include "neopixel.h"
 
+#include "debug.h"
+
 #define TAG "neopixel"
 #define I2S_TIMEOUT_TICKS 1000
 #define NEOPIXEL_TASK_PRIORITY (configMAX_PRIORITIES - 1)
@@ -71,7 +73,7 @@ tNeopixelContext *neopixel_Init(uint32_t pixels, int dout_pin)
    c = (tNpContext *) malloc(sizeof(*c));
    if(NULL == c)
    {
-      ESP_LOGE(TAG, "Failed to allocate context");
+      DEBUG_LOGE(TAG, "Failed to allocate context");
       return NULL;
    }
    memset(c, 0, sizeof(*c));
@@ -111,7 +113,7 @@ void neopixel_Deinit(tNeopixelContext ctx)
       vTaskDelay(pdMS_TO_TICKS(1));
    if(c->terminate)
    {
-      ESP_LOGE(TAG, "[%s] Failed waiting for thread to terminate\n", __func__);
+      DEBUG_LOGE(TAG, "[%s] Failed waiting for thread to terminate\n", __func__);
    }
 
    i2s_del_channel(c->i2s);
@@ -130,7 +132,7 @@ bool neopixel_SetPixel(tNeopixelContext ctx, tNeopixel *pixel, uint32_t pixelCou
       tNeopixel *p = &pixel[i];
       if(p->index >= c->pixels)
       {
-         ESP_LOGI(TAG, "Invalid pixel (%" PRIu32 ")", p->index);
+         DEBUG_LOGI(TAG, "Invalid pixel (%" PRIu32 ")", p->index);
          success = false;
       }
       else
@@ -171,7 +173,7 @@ static void neopixel_task(void *arg)
    buffer = (uint8_t *)malloc(c->bufferSize);
    if(NULL == buffer)
    {
-      ESP_LOGE(TAG, "[%s] Failed to allocate buffer", __func__);
+      DEBUG_LOGE(TAG, "[%s] Failed to allocate buffer", __func__);
       return;
    }
 
