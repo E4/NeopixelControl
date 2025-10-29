@@ -255,14 +255,17 @@ Dyna.textarea = function(cls, options, kids) {
   return rv;
 }
 
-Dyna.select = function(cls, options, kids) {
-  var rv = {
-    "tagName":"select",
-    "class":cls,
-    "children": kids
+Dyna.select = function(cls, options, optionsList) {
+  const noop = ()=>{};
+  var kids = [];
+  for(var i=0;i<optionsList.length;i++) {
+    kids.push({ "tagName": "option", "text": optionsList[i], "value": i});
   }
+  var rv = {"tagName":"select","class":cls,"children": kids}
   for(let o in options) rv[o] = options[o];
-  return rv;
+  var requestedOnChange = rv["on-change"];
+  rv["on-change"] = (e)=>{rv.value = e.target.value;if(rv.selectedIndex!=undefined) rv.selectedIndex=e.target.selectedIndex;requestedOnChange?requestedOnChange(e):noop()};
+  return Dyna.create(rv);
 }
 
 Dyna.label = function(cls, text, options, kids) {
@@ -275,23 +278,6 @@ Dyna.label = function(cls, text, options, kids) {
   for(let o in options) rv[o] = options[o];
   return rv;
 }
-
-Dyna.options = function(optionlist, defaultOption = false, defaultText="") {
-  var rv = [];
-  if (defaultOption) {
-    rv.push({ "tagName": "option", "value": "", "disabled": true, "selected": true, "style": "display:none;", "text": defaultText  });
-  }
-  for (var optionitem in optionlist) {
-    var option = optionlist[optionitem];
-    if (typeof option !== 'object') {
-      rv.push({ "tagName": "option", "value": option, "text": option });
-    } else {
-      rv.push({ "tagName": "option", "value": option.value, "text": option.text });
-    }
-  }
-  return rv;
-}
-
 
 Dyna.update = function(e) {
   Dyna.create(e,null);
@@ -426,6 +412,7 @@ var ChaserControl = function() {
       getUpdatedColorField(u8(9),u8(10),u8(11)),
       getUpdatedColorField(u8(12),u8(13),u8(14)),
       getUpdatedColorField(u8(15),u8(16),u8(17)),
+      getBlendFunctionSelect(u8(31)),
       getGenericNumberField('Position Offset', uint16_t, u16(18)),
       getGenericNumberField('Position Step', int8_t, i8(20)),
       getGenericNumberField('Position Delay', uint8_t, u8(21)),
@@ -442,13 +429,18 @@ var ChaserControl = function() {
     Dyna.update(fieldContainer);
   }
 
+  function getBlendFunctionSelect(blendFunction) {
+    var rv =  Dyna.select("o",{"on-change":gatherAndSendValues,"selectedIndex":blendFunction},["replace", "add", "subtract", "difference", "multiply", "screen", "overlay", "dodge", "burn", "average", "lighten", "darken"])
+    return rv;
+  }
+
   function getFlagCheckboxes(flagValues) {
     return [
       inputCheckbox(  "Clear Previous",   flagValues &   1),
       inputCheckbox( "Random Position",   flagValues &   2),
       inputCheckbox(    "Random Color",   flagValues &   4),
       inputCheckbox(      "Sinusoidal",   flagValues &   8),
-      inputCheckbox(  "Additive Color",   flagValues &  16),
+      inputCheckbox(                "",   flagValues &  16),
       inputCheckbox(                "",   flagValues &  32),
       inputCheckbox(                "",   flagValues &  64),
       inputCheckbox(                "",   flagValues & 128),
@@ -493,16 +485,22 @@ var ChaserControl = function() {
     gatherColorValue(chaserElement[3], dataView, baseOffset+9);
     gatherColorValue(chaserElement[4], dataView, baseOffset+12);
     gatherColorValue(chaserElement[5], dataView, baseOffset+15);
-    dataView.setUint16(baseOffset+18,getValue(chaserElement[6]),true);
-    dataView.setInt8(baseOffset+20,getValue(chaserElement[7]));
-    dataView.setUint8(baseOffset+21,getValue(chaserElement[8]));
-    dataView.setUint8(baseOffset+22,getValue(chaserElement[9]));
-    dataView.setUint8(baseOffset+23,getValue(chaserElement[10]));
-    dataView.setUint8(baseOffset+24,getValue(chaserElement[11]));
-    dataView.setUint8(baseOffset+25,getValue(chaserElement[12]));
-    dataView.setUint16(baseOffset+26,getValue(chaserElement[13]),true);
-    dataView.setUint16(baseOffset+28,getValue(chaserElement[14]),true);
+    dataView.setUint16(baseOffset+18,getValue(chaserElement[7]),true);
+    dataView.setInt8(baseOffset+20,getValue(chaserElement[8]));
+    dataView.setUint8(baseOffset+21,getValue(chaserElement[9]));
+    dataView.setUint8(baseOffset+22,getValue(chaserElement[10]));
+    dataView.setUint8(baseOffset+23,getValue(chaserElement[11]));
+    dataView.setUint8(baseOffset+24,getValue(chaserElement[12]));
+    dataView.setUint8(baseOffset+25,getValue(chaserElement[13]));
+    dataView.setUint16(baseOffset+26,getValue(chaserElement[14]),true);
+    dataView.setUint16(baseOffset+28,getValue(chaserElement[15]),true);
     dataView.setUint8(baseOffset+30,getFlagValues(chaserElement));
+    dataView.setUint8(baseOffset+31,getBlendFunctionValue(chaserElement[6]));
+  }
+
+  function getBlendFunctionValue(chaserElements) {
+    //console.log(chaserElements[19]["children"][0].selectedIndex);
+    return 0;
   }
 
   function gatherColorValue(colorElement, dataView, positionOffset) {
@@ -519,14 +517,14 @@ var ChaserControl = function() {
 
   function getFlagValues(chaserElements) {
     return (
-      chaserElements[15]["children"][0].checked*1+
-      chaserElements[16]["children"][0].checked*2+
-      chaserElements[17]["children"][0].checked*4+
-      chaserElements[18]["children"][0].checked*8+
-      chaserElements[19]["children"][0].checked*16+
-      chaserElements[20]["children"][0].checked*32+
-      chaserElements[21]["children"][0].checked*64+
-      chaserElements[22]["children"][0].checked*128
+      chaserElements[16]["children"][0].checked*1+
+      chaserElements[17]["children"][0].checked*2+
+      chaserElements[18]["children"][0].checked*4+
+      chaserElements[19]["children"][0].checked*8+
+      chaserElements[20]["children"][0].checked*16+
+      chaserElements[21]["children"][0].checked*32+
+      chaserElements[22]["children"][0].checked*64+
+      chaserElements[23]["children"][0].checked*128
     );
   }
 

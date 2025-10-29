@@ -10,7 +10,7 @@ typedef struct  {
   uint16_t range_length;        // 28-29: range length
   uint16_t range_offset;        // 26-27: range offset
   uint8_t flags;                //    30: flags
-  uint8_t reserved;             //    31: padding
+  uint8_t blend_func;           //    31: blend function
   uint16_t previous_position;   // 32-33: internal - keep track of previous position for clearing
 } chaser_data_t;
 
