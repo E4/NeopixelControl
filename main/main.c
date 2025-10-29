@@ -245,10 +245,18 @@ static void set_pixels_for_chaser(chaser_data_t* chaser, uint32_t chaser_color) 
   if(chaser->repeat) {
     repeats = MIN(CONFIG_LED_COUNT/2, chaser->range_length/chaser->repeat);
     for(r=0;r<repeats;r++) {
-      chaser_pixel[((position_offset + chaser->repeat * r) % chaser->range_length) + chaser->range_offset].rgb = add_rgb24_sat(chaser_pixel[((position_offset + chaser->repeat * r) % chaser->range_length) + chaser->range_offset].rgb, chaser_color);
+      if(chaser->flags&FLAG_ADDITIVE_COLOR) {
+        chaser_pixel[((position_offset + chaser->repeat * r) % chaser->range_length) + chaser->range_offset].rgb = add_rgb24_sat(chaser_pixel[((position_offset + chaser->repeat * r) % chaser->range_length) + chaser->range_offset].rgb, chaser_color);
+      }else {
+        chaser_pixel[((position_offset + chaser->repeat * r) % chaser->range_length) + chaser->range_offset].rgb = chaser_color;
+      }
     }
   } else {
-    chaser_pixel[position_offset + chaser->range_offset].rgb = add_rgb24_sat(chaser_pixel[position_offset + chaser->range_offset].rgb, chaser_color);
+    if(chaser->flags&FLAG_ADDITIVE_COLOR) {
+      chaser_pixel[position_offset + chaser->range_offset].rgb = add_rgb24_sat(chaser_pixel[position_offset + chaser->range_offset].rgb, chaser_color);
+    } else {
+      chaser_pixel[position_offset + chaser->range_offset].rgb = chaser_color;
+    }
   }
 
 }
