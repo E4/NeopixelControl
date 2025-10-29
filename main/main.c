@@ -19,6 +19,8 @@
 #include "driver/gpio.h"
 #include "neopixel.h"
 
+#include "colormerge.h"
+
 #include "chaser_data.h"
 
 #include "debug.h"
@@ -46,8 +48,6 @@ static inline int positive_mod(int value, int mod) {
 #define set_leds(r, g, b) set_leds_int(NP_RGB((r), (g), (b)))
 #define flash_leds(r, g, b) flash_leds_int(NP_RGB((r), (g), (b)))
 
-static inline uint8_t sat8(uint32_t x);
-static inline uint32_t add_rgb24_sat(uint32_t a, uint32_t b);
 static httpd_handle_t start_webserver(void);
 static void stop_webserver(void);
 static esp_err_t server_request_handler_get(httpd_req_t *req);
@@ -63,7 +63,6 @@ static void set_leds_int(uint32_t c);
 static void flash_leds_int(uint32_t c);
 static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data);
 static void init_wifi();
-
 
 static tNeopixelContext neopixel;
 static uint32_t refreshRate, taskDelay;
@@ -83,27 +82,6 @@ extern const uint8_t css_end[]   asm("_binary_s_css_end");
 
 extern const uint8_t javascript_start[]  asm("_binary_j_js_start");
 extern const uint8_t javascript_end[]    asm("_binary_j_js_end");
-
-//
-
-static inline uint8_t sat8(uint32_t x) { return (x > 255u) ? 255u : (uint8_t)x; }
-
-static inline uint32_t add_rgb24_sat(uint32_t a, uint32_t b)
-{
-    uint32_t ar = (a >> 16) & 0xFFu;
-    uint32_t ag = (a >> 8)  & 0xFFu;
-    uint32_t ab =  a        & 0xFFu;
-
-    uint32_t br = (b >> 16) & 0xFFu;
-    uint32_t bg = (b >> 8)  & 0xFFu;
-    uint32_t bb =  b        & 0xFFu;
-
-    uint32_t r = sat8(ar + br);
-    uint32_t g = sat8(ag + bg);
-    uint32_t bl = sat8(ab + bb);
-
-    return (r << 16) | (g << 8) | bl;
-}
 
 static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
   if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
@@ -246,14 +224,14 @@ static void set_pixels_for_chaser(chaser_data_t* chaser, uint32_t chaser_color) 
     repeats = MIN(CONFIG_LED_COUNT/2, chaser->range_length/chaser->repeat);
     for(r=0;r<repeats;r++) {
       if(chaser->flags&FLAG_ADDITIVE_COLOR) {
-        chaser_pixel[((position_offset + chaser->repeat * r) % chaser->range_length) + chaser->range_offset].rgb = add_rgb24_sat(chaser_pixel[((position_offset + chaser->repeat * r) % chaser->range_length) + chaser->range_offset].rgb, chaser_color);
+        chaser_pixel[((position_offset + chaser->repeat * r) % chaser->range_length) + chaser->range_offset].rgb = rgb_add(chaser_pixel[((position_offset + chaser->repeat * r) % chaser->range_length) + chaser->range_offset].rgb, chaser_color);
       }else {
         chaser_pixel[((position_offset + chaser->repeat * r) % chaser->range_length) + chaser->range_offset].rgb = chaser_color;
       }
     }
   } else {
     if(chaser->flags&FLAG_ADDITIVE_COLOR) {
-      chaser_pixel[position_offset + chaser->range_offset].rgb = add_rgb24_sat(chaser_pixel[position_offset + chaser->range_offset].rgb, chaser_color);
+      chaser_pixel[position_offset + chaser->range_offset].rgb = rgb_add(chaser_pixel[position_offset + chaser->range_offset].rgb, chaser_color);
     } else {
       chaser_pixel[position_offset + chaser->range_offset].rgb = chaser_color;
     }
