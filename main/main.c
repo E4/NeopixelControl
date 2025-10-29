@@ -211,6 +211,7 @@ static void set_pixels_for_chaser(chaser_data_t* chaser, uint32_t chaser_color) 
   static uint16_t repeats;
   static uint16_t r;
   static uint16_t position_offset;
+  static size_t idx;
 
   if(chaser->flags&FLAG_SINUSOIDAL) {
     position_offset = (uint16_t)((sin((float)chaser->position_offset/((float)(chaser->range_length<<4))*6.28)+1)*0.5*(float)chaser->range_length);
@@ -223,20 +224,13 @@ static void set_pixels_for_chaser(chaser_data_t* chaser, uint32_t chaser_color) 
   if(chaser->repeat) {
     repeats = MIN(CONFIG_LED_COUNT/2, chaser->range_length/chaser->repeat);
     for(r=0;r<repeats;r++) {
-      if(chaser->flags&FLAG_ADDITIVE_COLOR) {
-        chaser_pixel[((position_offset + chaser->repeat * r) % chaser->range_length) + chaser->range_offset].rgb = rgb_add(chaser_pixel[((position_offset + chaser->repeat * r) % chaser->range_length) + chaser->range_offset].rgb, chaser_color);
-      }else {
-        chaser_pixel[((position_offset + chaser->repeat * r) % chaser->range_length) + chaser->range_offset].rgb = chaser_color;
-      }
+      idx = ((position_offset + chaser->repeat * r) % chaser->range_length) + chaser->range_offset;
+      chaser_pixel[idx].rgb = apply_blend(chaser_pixel[idx].rgb, chaser_color, chaser->blend_func);
     }
   } else {
-    if(chaser->flags&FLAG_ADDITIVE_COLOR) {
-      chaser_pixel[position_offset + chaser->range_offset].rgb = rgb_add(chaser_pixel[position_offset + chaser->range_offset].rgb, chaser_color);
-    } else {
-      chaser_pixel[position_offset + chaser->range_offset].rgb = chaser_color;
-    }
+    idx = position_offset + chaser->range_offset;
+    chaser_pixel[idx].rgb = apply_blend(chaser_pixel[idx].rgb, chaser_color, chaser->blend_func);
   }
-
 }
 
 

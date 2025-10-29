@@ -18,7 +18,7 @@ typedef struct  {
 #define FLAG_RANDOM_POSITION  2
 #define FLAG_RANDOM_COLOR     4
 #define FLAG_SINUSOIDAL       8
-#define FLAG_ADDITIVE_COLOR  16
+#define FLAG_RESERVED_1      16
 #define FLAG_RESERVED_2      32
 #define FLAG_RESERVED_3      64
 #define FLAG_RESERVED_4     128

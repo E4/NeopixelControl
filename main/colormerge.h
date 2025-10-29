@@ -11,6 +11,9 @@ static inline uint32_t sat_sub8(uint32_t a, uint32_t b) { return (a > b) ? (a - 
 
 /* A = base, B = blend. Some modes are ORDERED: rgb_mode(A,B) != rgb_mode(B,A). */
 
+static inline uint32_t rgb_replace(uint32_t base, uint32_t blend) {
+    (void)base; return blend;
+}
 
 static inline uint32_t rgb_add(uint32_t A, uint32_t B) {
     uint32_t ar,ag,ab, br,bg,bb; unpack(A,&ar,&ag,&ab); unpack(B,&br,&bg,&bb);
@@ -93,4 +96,26 @@ static inline uint32_t rgb_lighten(uint32_t A, uint32_t B) {
 static inline uint32_t rgb_darken(uint32_t A, uint32_t B) {
     uint32_t ar,ag,ab, br,bg,bb; unpack(A,&ar,&ag,&ab); unpack(B,&br,&bg,&bb);
     return pack(ar<br?ar:br, ag<bg?ag:bg, ab<bb?ab:bb);
+}
+
+
+typedef uint32_t (*blend_fn_t)(uint32_t base, uint32_t blend);
+
+static const blend_fn_t BLEND_TABLE[12] = {
+    rgb_replace,       // 0: "replace"
+    rgb_add,           // 1: "add"
+    rgb_subtract,      // 2: "subtract"
+    rgb_difference,    // 3: "difference"
+    rgb_multiply,      // 4: "multiply"
+    rgb_screen,        // 5: "screen"
+    rgb_overlay,       // 6: "overlay"      (ordered: base=A, blend=B)
+    rgb_color_dodge,   // 7: "dodge"        (ordered)
+    rgb_color_burn,    // 8: "burn"         (ordered)
+    rgb_average,       // 9: "average"
+    rgb_lighten,       // 10: "lighten"
+    rgb_darken         // 11: "darken"
+};
+
+static inline uint32_t apply_blend(uint32_t base, uint32_t blend, uint8_t func) {
+    return BLEND_TABLE[func](base, blend);
 }
