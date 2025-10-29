@@ -6,3 +6,4 @@ main/config.h
 html/*.jar
 html/j.js
 html/s.css
+dependencies.lock
