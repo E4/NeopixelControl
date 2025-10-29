@@ -448,7 +448,7 @@ var ChaserControl = function() {
       inputCheckbox( "Random Position",   flagValues & 2),
       inputCheckbox(    "Random Color",   flagValues & 4),
       inputCheckbox(  "Delayed Update",   flagValues & 8),
-      inputCheckbox(                "",  flagValues & 16),
+      inputCheckbox(      "Sinusoidal",  flagValues & 16),
       inputCheckbox(                "",  flagValues & 32),
       inputCheckbox(                "",  flagValues & 64),
       inputCheckbox(                "", flagValues & 128),
