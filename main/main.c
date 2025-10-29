@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "esp_system.h"
@@ -163,21 +164,17 @@ static void move_chasers() {
   if(++frame==0) frame=1;
   for(i=0;i<chaser_count;i++) {
 
-    if(frame%chaser_data[i].position_delay==0) {
-      if(chaser_data[i].flags&FLAG_RANDOM_POSITION) {
-        new_position_offset = esp_random()%(chaser_data[i].range_length<<4);
-      } else {
-        new_position_offset = (uint16_t)positive_mod((int)chaser_data[i].position_offset + chaser_data[i].position_speed, chaser_data[i].range_length<<4);
-      }
-
-      if((chaser_data[i].flags&FLAG_CLEAR_PREVIOUS)&&(new_position_offset>>4)!=chaser_data[i].position_offset>>4) {
-        set_pixels_for_chaser(chaser_data[i],0);
-      }
-
-      chaser_data[i].position_offset = new_position_offset;
+    if(chaser_data[i].flags&FLAG_RANDOM_POSITION) {
+      new_position_offset = esp_random()%(chaser_data[i].range_length<<4);
     } else {
-      if(chaser_data[i].flags&FLAG_NO_MOVE_NO_SET) return;
+      new_position_offset = (uint16_t)positive_mod((int)chaser_data[i].position_offset + chaser_data[i].position_speed, chaser_data[i].range_length<<4);
     }
+
+    if((chaser_data[i].flags&FLAG_CLEAR_PREVIOUS)&&(new_position_offset>>4)!=chaser_data[i].position_offset>>4) {
+      set_pixels_for_chaser(chaser_data[i],0);
+    }
+
+    chaser_data[i].position_offset = new_position_offset;
 
 
     if(frame%chaser_data[i].color_delay==0) {
@@ -194,17 +191,25 @@ static void move_chasers() {
 
 
 static void set_pixels_for_chaser(chaser_data_t chaser, uint32_t chaser_color) {
-  static int16_t repeats;
-  static int16_t r;
+  static uint16_t repeats;
+  static uint16_t r;
+  static uint16_t position_offset;
+
+  if(chaser.flags&FLAG_SINUSOIDAL) {
+    position_offset = (uint16_t)((sin((float)chaser.position_offset/((float)(chaser.range_length<<4))*6.28)+1)*0.5*(float)chaser.range_length);
+  } else {
+    position_offset = chaser.position_offset>>4;
+  }
+
   if(chaser.repeat) {
     repeats = chaser.range_length/chaser.repeat;
     for(r=0;r<repeats;r++) {
-      chaser_pixel[r].index = (((chaser.position_offset>>4) + chaser.repeat * r) % chaser.range_length) + chaser.range_offset;
+      chaser_pixel[r].index = ((position_offset + chaser.repeat * r) % chaser.range_length) + chaser.range_offset;
       chaser_pixel[r].rgb = chaser_color;
     }
     neopixel_SetPixel(neopixel, chaser_pixel, r);
   } else {
-    chaser_pixel[0].index = (chaser.position_offset>>4) + chaser.range_offset;
+    chaser_pixel[0].index = position_offset + chaser.range_offset;
     chaser_pixel[0].rgb = chaser_color;
     neopixel_SetPixel(neopixel, chaser_pixel, 1);
   }
@@ -245,20 +250,22 @@ static esp_err_t server_request_handler_get_bin(httpd_req_t *req) {
 
 
 static esp_err_t server_request_handler_post(httpd_req_t *req) {
-  const char resp[] = "OK\n";
-  httpd_resp_send(req, resp, HTTPD_RESP_USE_STRLEN);
+  httpd_resp_send(req, "OK", HTTPD_RESP_USE_STRLEN);
 
   const size_t total_len = req->content_len;
   if (total_len == 0) {
+    ESP_LOGI(TAG, "Received zero lenght data");
     return ESP_FAIL;
   }
 
   if (total_len % sizeof(chaser_data_t) != 0) {
+    ESP_LOGI(TAG, "Received data length is not multiple of chaser data length");
     return ESP_FAIL;
   }
 
   chaser_data_t *new_data = malloc(total_len);
   if (new_data == NULL) {
+    ESP_LOGI(TAG, "Could not allocate enough memory for the data");
     return ESP_ERR_NO_MEM;
   }
 
@@ -302,9 +309,7 @@ static esp_err_t server_request_handler_post(httpd_req_t *req) {
   if (chaser_data_mutex != NULL) {
     xSemaphoreGive(chaser_data_mutex);
   }
-
-  ESP_LOGI(TAG, "Updated chaser data with %d entries", chaser_count);
-
+  ESP_LOGI(TAG, "Received chaser data");
   return ESP_OK;
 }
 
@@ -338,7 +343,7 @@ static void stop_webserver(void) {
 void app_main(void) {
   neopixel = neopixel_Init(CONFIG_LED_COUNT, CONFIG_LED_GPIO);
   if(NULL == neopixel) {
-    ESP_LOGE(TAG, "[%s] Initialization failed\n", __func__);
+    ESP_LOGE(TAG, "Neopixel initialization failed");
     return;
   }
 
@@ -360,7 +365,7 @@ void app_main(void) {
   init_wifi();
 
   while(chaser_count == 0) {
-    ESP_LOGI(TAG, "chaser count: %d", chaser_count);
+    ESP_LOGI(TAG, "Waiting for chaser data");
     set_leds(4,0,0);
     vTaskDelay(taskDelay);
     set_leds(0,4,0);

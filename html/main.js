@@ -355,12 +355,13 @@ Dyna.removeElement = function(dynaroot) {
  * @constructor
  */
 var ChaserControl = function() {
+  const chaserSize = 34;
   const uint16_t = ["v","number",{"min":"0","max":"65535","value":"0"}];
   const uint8_t = ["v","number",{"min":"0","max":"255","value":"0"}];
   const int8_t = ["v","number",{"min":"-128","max":"127","value":"0"}];
   const color_t = ["v","color",{"value":"#000000"}];
 
-  // Posts raw chaser bytes given as a plain JS array (length always multiple of 32).
+  // Posts raw chaser bytes given as a plain JS array (length always multiple of chaserSize).
   async function postChaserBytes(arr) {
     const bytes = new Uint8Array(arr);
   
@@ -395,16 +396,16 @@ var ChaserControl = function() {
   let outerContainer = Dyna.div("",null,null, [fieldContainer,Dyna.butt("a","add",{"on-click":addAnotherChaser})])
 
   function addAnotherChaser() {
-    appendChasers(new ArrayBuffer(32));
+    appendChasers(new ArrayBuffer(chaserSize));
     gatherAndSendValues();
   }
   
   function appendChasers(dataArray) {
     if(!dataArray || !dataArray.byteLength) return;
     const dataView = new DataView(dataArray);
-    const count = dataArray.byteLength / 32;
+    const count = dataArray.byteLength / chaserSize;
     for(let i=0;i<count;i++) {
-      appendChaser(dataView,i*32);
+      appendChaser(dataView,i*chaserSize);
     }
   }
 
@@ -426,10 +427,10 @@ var ChaserControl = function() {
       getUpdatedColorField(u8(12),u8(13),u8(14)),
       getUpdatedColorField(u8(15),u8(16),u8(17)),
       getGenericNumberField('Position Offset', uint16_t, u16(18)),
-      getGenericNumberField('Position Skip', int8_t, i8(20)),
+      getGenericNumberField('Position Step', int8_t, i8(20)),
       getGenericNumberField('Position Delay', uint8_t, u8(21)),
       getGenericNumberField('Color Offset', uint8_t, u8(22)),
-      getGenericNumberField('Color Skip', uint8_t, u8(23)),
+      getGenericNumberField('Color Step', uint8_t, u8(23)),
       getGenericNumberField('Color Delay', uint8_t, u8(24)),
       getGenericNumberField('Repeat', uint8_t, u8(25)),
       getGenericNumberField('Range Length', uint16_t, u16(26)),
@@ -479,10 +480,10 @@ var ChaserControl = function() {
 
   function gatherAndSendValues() {
     console.log("sending")
-    var arrayBuffer = new ArrayBuffer(fieldContainerChildren.length*32);
+    var arrayBuffer = new ArrayBuffer(fieldContainerChildren.length*chaserSize);
     var dataView = new DataView(arrayBuffer);
     for(let i=0;i<fieldContainerChildren.length;i++) {
-      gatherChaserValues(fieldContainerChildren[i]["children"],dataView,i*32);
+      gatherChaserValues(fieldContainerChildren[i]["children"],dataView,i*chaserSize);
     }
     postChaserBytes(arrayBuffer);
   }
