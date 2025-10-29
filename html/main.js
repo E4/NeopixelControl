@@ -172,36 +172,8 @@ Dyna.genericTag = function(tagname, cls, text, options, kids) {
 }
 
 Dyna.div   = (cls,text=null,options=null,kids=[])=>Dyna.genericTag("div",    cls, text, options, kids);
-Dyna.h1    = (cls,text=null,options=null,kids=[])=>Dyna.genericTag("h1",     cls, text, options, kids);
-Dyna.h2    = (cls,text=null,options=null,kids=[])=>Dyna.genericTag("h2",     cls, text, options, kids);
-Dyna.h3    = (cls,text=null,options=null,kids=[])=>Dyna.genericTag("h3",     cls, text, options, kids);
-Dyna.span  = (cls,text=null,options=null,kids=[])=>Dyna.genericTag("span",   cls, text, options, kids);
-Dyna.p     = (cls,text=null,options=null,kids=[])=>Dyna.genericTag("p",      cls, text, options, kids);
-Dyna.a     = (cls,text=null,options=null,kids=[])=>Dyna.genericTag("a",      cls, text, options, kids);
-Dyna.img   = (cls,text=null,options=null,kids=[])=>Dyna.genericTag("img",    cls, text, options, kids);
-Dyna.form  = (cls,text=null,options=null,kids=[])=>Dyna.genericTag("form",   cls, text, options, kids);
-Dyna.table = (cls,text=null,options=null,kids=[])=>Dyna.genericTag("table",  cls, text, options, kids);
-Dyna.tr    = (cls,text=null,options=null,kids=[])=>Dyna.genericTag("tr",     cls, text, options, kids);
-Dyna.td    = (cls,text=null,options=null,kids=[])=>Dyna.genericTag("td",     cls, text, options, kids);
-Dyna.th    = (cls,text=null,options=null,kids=[])=>Dyna.genericTag("th",     cls, text, options, kids);
-Dyna.a     = (cls,text=null,options=null,kids=[])=>Dyna.genericTag("a",      cls, text, options, kids);
-Dyna.ul    = (cls,text=null,options=null,kids=[])=>Dyna.genericTag("ul",     cls, text, options, kids);
-Dyna.ol    = (cls,text=null,options=null,kids=[])=>Dyna.genericTag("ol",     cls, text, options, kids);
-Dyna.li    = (cls,text=null,options=null,kids=[])=>Dyna.genericTag("li",     cls, text, options, kids);
-Dyna.i     = (cls,text=null,options=null,kids=[])=>Dyna.genericTag("i",      cls, text, options, kids);
 Dyna.butt  = (cls,text=null,options=null,kids=[])=>Dyna.genericTag("button", cls, text, options, kids);
 
-Dyna.ahref = (cls,text,href,options=null,kids=[])=>{
-  if(options== null) options = {};
-  if(options.href==null) options.href = href;
-  return Dyna.genericTag("a", cls, text, options, kids);
-}
-
-Dyna.img = (cls,src,options=null,kids=[])=>{
-  if(options==null) options = {};
-  if(options.src==null) options.src = src;
-  return Dyna.genericTag("img", cls, null, options, kids);
-}
 
 Dyna.btnLbl = function(cls,text,options=null,kids=[]) {
   var rv = {
@@ -498,9 +470,8 @@ var ChaserControl = function() {
     dataView.setUint8(baseOffset+31,getBlendFunctionValue(chaserElement[6]));
   }
 
-  function getBlendFunctionValue(chaserElements) {
-    //console.log(chaserElements[19]["children"][0].selectedIndex);
-    return 0;
+  function getBlendFunctionValue(chaserElement) {
+    return chaserElement.selectedIndex;
   }
 
   function gatherColorValue(colorElement, dataView, positionOffset) {
