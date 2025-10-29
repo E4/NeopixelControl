@@ -443,16 +443,15 @@ var ChaserControl = function() {
   }
 
   function getFlagCheckboxes(flagValues) {
-    console.log(flagValues & 1);
     return [
-      inputCheckbox(  "Clear Previous",   flagValues & 1),
-      inputCheckbox( "Random Position",   flagValues & 2),
-      inputCheckbox(    "Random Color",   flagValues & 4),
-      inputCheckbox(  "Delayed Update",   flagValues & 8),
-      inputCheckbox(      "Sinusoidal",  flagValues & 16),
-      inputCheckbox(                "",  flagValues & 32),
-      inputCheckbox(                "",  flagValues & 64),
-      inputCheckbox(                "", flagValues & 128),
+      inputCheckbox(  "Clear Previous",   flagValues &   1),
+      inputCheckbox( "Random Position",   flagValues &   2),
+      inputCheckbox(    "Random Color",   flagValues &   4),
+      inputCheckbox(      "Sinusoidal",   flagValues &   8),
+      inputCheckbox(                "",   flagValues &  16),
+      inputCheckbox(                "",   flagValues &  32),
+      inputCheckbox(                "",   flagValues &  64),
+      inputCheckbox(                "",   flagValues & 128),
     ];
   }
 
@@ -479,7 +478,6 @@ var ChaserControl = function() {
   }
 
   function gatherAndSendValues() {
-    console.log("sending")
     var arrayBuffer = new ArrayBuffer(fieldContainerChildren.length*chaserSize);
     var dataView = new DataView(arrayBuffer);
     for(let i=0;i<fieldContainerChildren.length;i++) {

@@ -2,6 +2,7 @@ body {
   background:black;
   color:white;
   font-family:sans-serif;
+  font-size:2.5vmin;
   max-width:100vh;
   margin:auto;
   padding:2%;
@@ -41,11 +42,11 @@ body {
   background:goldenrod;
   color:white;
   border:1px solid gray;
+  font-size:4vmin;
 }
 
 .r {
   width:40%;
-  font-size:4vmin;
   margin:4vmin 0 7vmin 0;
   background:red;
 }
@@ -53,7 +54,6 @@ body {
 .a {
   padding:2vmin;
   width:40%;
-  font-size:4vmin;
   margin:4vmin 0 0 0;
   background:goldenrod;
 }
