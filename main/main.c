@@ -63,6 +63,7 @@ static void set_leds_int(uint32_t c);
 static void flash_leds_int(uint32_t c);
 static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data);
 static void init_wifi();
+static TickType_t compute_period(uint32_t refreshRateHz);
 
 static tNeopixelContext neopixel;
 static uint32_t refreshRate, taskDelay;
@@ -170,16 +171,15 @@ static void move_chasers() {
   if(++frame==0) frame=1;
 
   for(i=0;i<chaser_count;i++) {
+    if(frame%(chaser_data[i].position_delay+1)!=0) continue;
 
-    if(frame%chaser_data[i].position_delay==0) {
-      if(chaser_data[i].flags&FLAG_RANDOM_POSITION) {
-        chaser_data[i].position_offset = esp_random()%(chaser_data[i].range_length<<4);
-      } else {
-        chaser_data[i].position_offset = (uint16_t)positive_mod((int)chaser_data[i].position_offset + chaser_data[i].position_speed, chaser_data[i].range_length<<4);
-      }
+    if(chaser_data[i].flags&FLAG_RANDOM_POSITION) {
+      chaser_data[i].position_offset = esp_random()%(chaser_data[i].range_length<<4);
+    } else {
+      chaser_data[i].position_offset = (uint16_t)positive_mod((int)chaser_data[i].position_offset + chaser_data[i].position_speed, chaser_data[i].range_length<<4);
     }
 
-    if(frame%chaser_data[i].color_delay==0) {
+    if(frame%(chaser_data[i].color_delay+1)==0) {
       if(chaser_data[i].flags&FLAG_RANDOM_COLOR) {
         chaser_data[i].color_offset = esp_random() % 240;
       } else {
@@ -311,8 +311,6 @@ static esp_err_t server_request_handler_post(httpd_req_t *req) {
   chaser_count = total_len / sizeof(chaser_data_t);
 
   for (int i = 0; i < chaser_count; i++) {
-    if (chaser_data[i].position_delay == 0) chaser_data[i].position_delay = 1;
-    if (chaser_data[i].color_delay == 0) chaser_data[i].color_delay = 1;
     if (chaser_data[i].range_length + chaser_data[i].range_offset > CONFIG_LED_COUNT) {
       chaser_data[i].range_length=0;
       chaser_data[i].range_offset=0;
@@ -358,6 +356,12 @@ static void stop_webserver(void) {
 }
 
 
+static TickType_t compute_period(uint32_t refreshRateHz) {
+    if (refreshRateHz == 0) return 1;
+    return (TickType_t)MAX(1u, (configTICK_RATE_HZ + refreshRateHz - 1) / refreshRateHz);
+}
+
+
 void app_main(void) {
   neopixel = neopixel_Init(CONFIG_LED_COUNT, CONFIG_LED_GPIO);
   if(NULL == neopixel) {
@@ -372,12 +376,12 @@ void app_main(void) {
     taskDelay = MAX((TickType_t)1, (TickType_t)((configTICK_RATE_HZ + refreshRate - 1) / refreshRate));
   }
 
+
   chaser_data_mutex = xSemaphoreCreateMutex();
   if (chaser_data_mutex == NULL) {
     DEBUG_LOGE(TAG, "Failed to create chaser data mutex");
     return;
   }
-
 
   nvs_flash_init();
   init_wifi();
@@ -396,14 +400,16 @@ void app_main(void) {
 
   flash_leds(255,255,255);
 
-  while(true) {
+  TickType_t period = compute_period(neopixel_GetRefreshRate(neopixel));
+  TickType_t lastWake = xTaskGetTickCount();
 
-    if (xSemaphoreTake(chaser_data_mutex, portMAX_DELAY) != pdTRUE) continue;
-    move_chasers();
-    xSemaphoreGive(chaser_data_mutex);
+  for(;;) {
+    if (xSemaphoreTake(chaser_data_mutex, portMAX_DELAY) == pdTRUE) {
+      move_chasers();
+      xSemaphoreGive(chaser_data_mutex);
+    }
     neopixel_SetPixel(neopixel, chaser_pixel, ARRAY_SIZE(chaser_pixel));
-
-    vTaskDelay(taskDelay);
+    vTaskDelayUntil(&lastWake, period);
   }
   neopixel_Deinit(neopixel);
 }
