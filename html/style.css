@@ -36,18 +36,18 @@ body {
 .v[type="color"] {
   height:12vmin;
   width:100%;
+  border:none;
+  padding:0.75vmin;
 }
 
 .r,.a {
   border-radius:2svmin;
   background:goldenrod;
   color:white;
-  border:1px solid gray;
   font-size:3vmin;
   width:30%;
   padding:2vmin;
-  display:block;
-  margin:4vmin 0 0 0;
+  margin:4vmin 1vmin 0 1vmin;
 }
 
 .r {
@@ -55,6 +55,7 @@ body {
 }
 
 .a {
+  margin:1vmin;
   background:goldenrod;
 }
 
@@ -69,6 +70,10 @@ body {
   aspect-ratio:2.15;
 }
 
+.v, .o, .r, .a, .h {
+  border:0.1vmin solid #303030;
+}
+
 .o {
   padding:0.5vmin;
   font-size:4vmin;
@@ -78,6 +83,6 @@ body {
 }
 
 .h {
-  border:0.1vmin solid silver;
   padding:2vmin;
+  margin:0 0 2svmin 0;
 }

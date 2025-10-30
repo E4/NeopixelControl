@@ -368,9 +368,21 @@ var ChaserControl = function() {
   }
 
   function appendChaser(dataView,base) {
-    function removeThese() {
+    function removeThisChaser() {
       let i = fieldContainerChildren.indexOf(chaserEntry);
       if(i!=-1) fieldContainerChildren.splice(i,1);
+      Dyna.update(fieldContainer);
+      gatherAndSendValues();
+    }
+    function moveThisChaserUp() {
+      let i = fieldContainerChildren.indexOf(chaserEntry);
+      if(i!=-1 && i > 0) fieldContainerChildren.splice(i-1, 0, fieldContainerChildren.splice(i, 1)[0]);
+      Dyna.update(fieldContainer);
+      gatherAndSendValues();
+    }
+    function moveThisChaserDown() {
+      let i = fieldContainerChildren.indexOf(chaserEntry);
+      if(i!=-1 && i < fieldContainerChildren.length-1) fieldContainerChildren.splice(i+1, 0, fieldContainerChildren.splice(i, 1)[0]);
       Dyna.update(fieldContainer);
       gatherAndSendValues();
     }
@@ -395,7 +407,9 @@ var ChaserControl = function() {
       getGenericNumberField('Range Length', uint16_t, u16(26)),
       getGenericNumberField('Range Offset', uint16_t, u16(28)),
       ...getFlagCheckboxes(u8(30)),
-      Dyna.butt("r","remove",{"on-click":removeThese})
+      Dyna.butt("r","remove",{"on-click":removeThisChaser}),
+      Dyna.butt("r","▲",{"on-click":moveThisChaserUp}),
+      Dyna.butt("r","▼",{"on-click":moveThisChaserDown})
     ]);
     fieldContainerChildren.push(chaserEntry);
     Dyna.update(fieldContainer);
