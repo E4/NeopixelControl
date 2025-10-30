@@ -1,6 +1,5 @@
 body {
-  background:black;
-  color:white;
+  background: #0F001F;
   font-family:sans-serif;
   font-size:2.5vmin;
   max-width:100vh;
@@ -12,8 +11,8 @@ body {
 
 .c, .n, .l, .s  {
   display:inline-block;
-  margin:3vmin 0 0 0;
-  width:calc(100%/3);
+  margin: 1vmin 0 0 0;
+  width: calc(100%/3);
 }
 
 .c {
@@ -22,10 +21,7 @@ body {
 }
 
 .v {
-  border-radius:1px;
-  display:inline-block;
   width:100%;
-  padding: 0;
   text-align:center;
   box-sizing: border-box;
   background:black;
@@ -85,4 +81,5 @@ body {
 .h {
   padding:2vmin;
   margin:0 0 2svmin 0;
+  background: black;
 }
