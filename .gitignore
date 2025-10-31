@@ -6,4 +6,9 @@ main/config.h
 html/*.jar
 html/j.js
 html/s.css
+html/style.map
+html/css.sed
+html/js.sed
+html/style.min.css
+html/main.min.js
 dependencies.lock

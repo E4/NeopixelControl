@@ -1,5 +1,43 @@
 #!/bin/bash
 
+# Create a style map
+grep '{' "style.css" \
+| sed 's/{.*//' \
+| grep -o '\.[A-Za-z0-9_-]\+' \
+| sed 's/^\.//' \
+| sort -u \
+| awk '!seen[$0]++' | awk '
+function idx_to_letters(n,   s, c) {
+  while (n > 0) {
+    n--; c = sprintf("%c", 97 + (n % 26))
+    s = c s
+    n = int(n / 26)
+  }
+  return s
+}
+
+{ print $0, idx_to_letters(NR) }
+' > style.map
+
+# Build a sed script from the map
+awk '{
+  printf "s/\\.%s([^A-Za-z0-9_-])/\\.%s\\1/g\n", $1, $2;  # .foo, followed by non ident
+  printf "s/\\.%s$/\\.%s/g\n",           $1, $2;         # .foo at end of line
+}' style.map > css.sed
+
+# Apply to your CSS
+sed -E -f css.sed style.css > style.min.css
+
+awk '{
+  printf "s/(^|[^A-Za-z0-9_-])\"%s\"([^A-Za-z0-9_-]|$)/\\1\"%s\"\\2/g\n", $1,$2
+  printf "s/(^|[^A-Za-z0-9_-])'\''%s'\''([^A-Za-z0-9_-]|$)/\\1'\''%s'\''\\2/g\n", $1,$2
+}' style.map > js.sed
+
+# Review before applying; string handling in JS is messy by nature.
+sed -E -f js.sed main.js > main.min.js
+
+
+
 # maven repository URL
 repo_url="https://repo1.maven.org/maven2/com/google/javascript/closure-compiler"
 
@@ -27,7 +65,7 @@ echo Compiling
 java -jar "$latest_compiler" \
   --compilation_level ADVANCED_OPTIMIZATIONS \
   --strict_mode_input \
-  --js main.js \
+  --js main.min.js \
   --js_output_file j.js
 
-sed -e 's/^[ \t]\+//' style.css | tr -d '\n\r\t' > s.css
+sed -e 's/^[ \t]\+//' style.min.css | tr -d '\n\r\t' > s.css
