@@ -416,7 +416,9 @@ var ChaserControl = function() {
   }
 
   function getBlendFunctionSelect(blendFunction) {
-    var rv =  Dyna.select("o",{"on-change":gatherAndSendValues,"selectedIndex":blendFunction},["replace", "add", "subtract", "difference", "multiply", "screen", "overlay", "dodge", "burn", "average", "lighten", "darken"])
+    var rv =  Dyna.label("s","Blend Mode","",[
+      Dyna.select("o",{"on-change":gatherAndSendValues,"selectedIndex":blendFunction},["replace", "add", "subtract", "difference", "multiply", "screen", "overlay", "dodge", "burn", "average", "lighten", "darken"])
+    ]);
     return rv;
   }
 
