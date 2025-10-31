@@ -487,7 +487,7 @@ var ChaserControl = function() {
   }
 
   function getBlendFunctionValue(chaserElement) {
-    return chaserElement.selectedIndex;
+    return chaserElement["children"][0].selectedIndex;
   }
 
   function gatherColorValue(colorElement, dataView, positionOffset) {
