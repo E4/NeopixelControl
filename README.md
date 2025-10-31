@@ -30,3 +30,8 @@ An ESP32-powered light controller for WS2812/Neopixel strips. At its core are mu
 
 - Go into the `html` folder and launch your favorite http/https server to [serve](https://github.com/E4/Serve) the pages locally.
 - Point your browser to localhost, and you can see/edit all the HTML, Javascript and CSS right there.
+
+
+# Screenshot
+
+![Screenshot](/docs/screenshot.png?raw=true)
