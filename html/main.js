@@ -350,7 +350,7 @@ var ChaserControl = function() {
   }
 
   let fieldContainerChildren;
-  let fieldContainer = Dyna.div("",null,null, fieldContainerChildren = []);
+  let fieldContainer = Dyna.div("z",null,null, fieldContainerChildren = []);
   let outerContainer = Dyna.div("",null,null, [fieldContainer,Dyna.butt("a","add",{"on-click":addAnotherChaser})])
 
   function addAnotherChaser() {
