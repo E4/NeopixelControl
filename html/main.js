@@ -320,10 +320,10 @@ var ChaserControl = function() {
   const color_t = ["color-input","color",{"value":"#000000"}];
 
   // Posts raw chaser bytes given as a plain JS array (length always multiple of chaserSize).
-  async function postChaserBytes(arr) {
+  async function postChaserBytes(arr,path) {
     const bytes = new Uint8Array(arr);
   
-    const res = await fetch("/", {
+    const res = await fetch(path, {
       method: "POST",
       headers: { "Content-Type": "application/octet-stream" },
       body: bytes,
@@ -351,7 +351,16 @@ var ChaserControl = function() {
 
   let fieldContainerChildren;
   let fieldContainer = Dyna.div("chaser-list",null,null, fieldContainerChildren = []);
-  let bodyElements = [fieldContainer,Dyna.butt("add-chaser-button","add",{"on-click":addAnotherChaser})];
+  let bodyElements = [
+    fieldContainer,
+    Dyna.butt("add-chaser-button","add",{"on-click":addAnotherChaser}),
+    Dyna.butt("add-chaser-button","set default",{"on-click":setChaserAsDefault})
+  ];
+
+
+  function setChaserAsDefault() {
+    gatherAndSendValues("/save");
+  }
 
   function addAnotherChaser() {
     appendChasers(new ArrayBuffer(chaserSize));
@@ -417,7 +426,7 @@ var ChaserControl = function() {
 
   function getBlendFunctionSelect(blendFunction) {
     var rv =  Dyna.label("blend-mode-label","Blend Mode","",[
-      Dyna.select("blend-mode-select",{"on-change":gatherAndSendValues,"selectedIndex":blendFunction},["replace", "add", "subtract", "difference", "multiply", "screen", "overlay", "dodge", "burn", "average", "lighten", "darken"])
+      Dyna.select("blend-mode-select",{"on-change":()=>gatherAndSendValues(),"selectedIndex":blendFunction},["replace", "add", "subtract", "difference", "multiply", "screen", "overlay", "dodge", "burn", "average", "lighten", "darken"])
     ]);
     return rv;
   }
@@ -436,20 +445,20 @@ var ChaserControl = function() {
   }
 
   function inputCheckbox(labelText,boxIsChecked) {
-    return Dyna.label("checkbox-label",labelText,"",[Dyna.input("checkbox-input","checkbox",{"on-change":gatherAndSendValues,"checked":!!boxIsChecked})]);
+    return Dyna.label("checkbox-label",labelText,"",[Dyna.input("checkbox-input","checkbox",{"on-change":()=>gatherAndSendValues(),"checked":!!boxIsChecked})]);
   }
 
   function getGenericNumberField(fieldLabel, fieldType, value) {
     var rv = [...fieldType];
     rv[2]["value"] = value.toString();
-    rv[2]["on-change"] = gatherAndSendValues;
+    rv[2]["on-change"] = ()=>gatherAndSendValues();
     return Dyna.label("number-label",fieldLabel,null,[Dyna.input(...rv)]);
   }
 
   function getUpdatedColorField(r,g,b) {
     var rv = [...color_t];
     rv[2]["value"] = "#"+toHex2(r)+toHex2(g)+toHex2(b);
-    rv[2]["on-change"] = gatherAndSendValues;
+    rv[2]["on-change"] = ()=>gatherAndSendValues();
     return Dyna.label("color-label",null,null,[Dyna.input(...rv)]);
   }
 
@@ -457,13 +466,13 @@ var ChaserControl = function() {
     return n.toString(16).padStart(2, "0");
   }
 
-  function gatherAndSendValues() {
+  function gatherAndSendValues(path="/") {
     var arrayBuffer = new ArrayBuffer(fieldContainerChildren.length*chaserSize);
     var dataView = new DataView(arrayBuffer);
     for(let i=0;i<fieldContainerChildren.length;i++) {
       gatherChaserValues(fieldContainerChildren[i]["children"],dataView,i*chaserSize);
     }
-    postChaserBytes(arrayBuffer);
+    postChaserBytes(arrayBuffer,path);
   }
 
   function gatherChaserValues(chaserElement, dataView, baseOffset) {

@@ -9,6 +9,7 @@
 #include "esp_log.h"
 #include "esp_event.h"
 #include "nvs_flash.h"
+#include "nvs.h"
 #include "lwip/err.h"
 #include "lwip/sys.h"
 #include "esp_netif.h"
@@ -48,6 +49,9 @@ static inline int positive_mod(int value, int mod) {
 #define set_leds(r, g, b) set_leds_int(NP_RGB((r), (g), (b)))
 #define flash_leds(r, g, b) flash_leds_int(NP_RGB((r), (g), (b)))
 
+#define NVS_NAMESPACE "chaser"
+#define NVS_KEY_DATA "data"
+
 static httpd_handle_t start_webserver(void);
 static void stop_webserver(void);
 static esp_err_t server_request_handler_get(httpd_req_t *req);
@@ -55,6 +59,10 @@ static esp_err_t server_request_handler_get_css(httpd_req_t *req);
 static esp_err_t server_request_handler_get_js(httpd_req_t *req);
 static esp_err_t server_request_handler_get_bin(httpd_req_t *req);
 static esp_err_t server_request_handler_post(httpd_req_t *req);
+static chaser_data_t *get_chaser_data_from_post(httpd_req_t *req);
+static esp_err_t save_chaser_data_to_nvs(chaser_data_t *data, size_t length);
+static esp_err_t load_chaser_data_from_nvs();
+static void update_chaser_data(chaser_data_t *new_data, size_t total_len);
 static void move_chasers();
 static void clear_pixels_for_chaser(chaser_data_t* chaser);
 static void set_pixels_for_chaser(chaser_data_t *chaser, uint32_t color);
@@ -234,6 +242,107 @@ static void set_pixels_for_chaser(chaser_data_t* chaser, uint32_t chaser_color) 
 }
 
 
+static esp_err_t save_chaser_data_to_nvs(chaser_data_t *data, size_t length) {
+  nvs_handle_t handle;
+  esp_err_t err = nvs_open(NVS_NAMESPACE, NVS_READWRITE, &handle);
+  if (err != ESP_OK) {
+    return err;
+  }
+
+  err = nvs_set_blob(handle, NVS_KEY_DATA, data, length);
+
+  if (err == ESP_OK) {
+    err = nvs_commit(handle);
+  }
+
+  nvs_close(handle);
+
+  if (err == ESP_OK) {
+    DEBUG_LOGI(TAG, "Saved %d bytes to NVS", length);
+  }
+
+  return err;
+}
+
+
+static esp_err_t load_chaser_data_from_nvs() {
+  nvs_handle_t handle;
+  esp_err_t err = nvs_open(NVS_NAMESPACE, NVS_READONLY, &handle);
+  if (err == ESP_ERR_NVS_NOT_FOUND) {
+    return ESP_OK;
+  }
+  if (err != ESP_OK) {
+    return err;
+  }
+
+  size_t required_size = 0;
+  err = nvs_get_blob(handle, NVS_KEY_DATA, NULL, &required_size);
+  if (err == ESP_ERR_NVS_NOT_FOUND || required_size == 0) {
+    nvs_close(handle);
+    return ESP_OK;
+  }
+  if (err != ESP_OK) {
+    nvs_close(handle);
+    return err;
+  }
+
+  if (required_size % sizeof(chaser_data_t) != 0) {
+    nvs_close(handle);
+    return ESP_ERR_INVALID_SIZE;
+  }
+
+  chaser_data_t *buffer = malloc(required_size);
+  if (buffer == NULL) {
+    nvs_close(handle);
+    return ESP_ERR_NO_MEM;
+  }
+
+  err = nvs_get_blob(handle, NVS_KEY_DATA, buffer, &required_size);
+  nvs_close(handle);
+  if (err != ESP_OK) {
+    free(buffer);
+    return err;
+  }
+
+  update_chaser_data((chaser_data_t *)buffer, required_size);
+
+  DEBUG_LOGI(TAG, "Loaded default chaser data from NVS");
+  return ESP_OK;
+}
+
+
+
+// takes data, and length of data; updates the chasers
+static void update_chaser_data(chaser_data_t *new_data, size_t total_len) {
+  if (chaser_data_mutex != NULL) {
+    xSemaphoreTake(chaser_data_mutex, portMAX_DELAY);
+  }
+
+  if (chaser_data != NULL) {
+    free(chaser_data);
+  }
+  chaser_data = new_data;
+  chaser_count = total_len / sizeof(chaser_data_t);
+
+  for (int i = 0; i < chaser_count; i++) {
+    if (chaser_data[i].range_length + chaser_data[i].range_offset > CONFIG_LED_COUNT) {
+      chaser_data[i].range_length=0;
+      chaser_data[i].range_offset=0;
+    }
+    if (chaser_data[i].range_length==0) {
+      chaser_data[i].range_length = CONFIG_LED_COUNT;
+    }
+  }
+
+  set_leds(0, 0, 0);
+
+  if (chaser_data_mutex != NULL) {
+    xSemaphoreGive(chaser_data_mutex);
+  }
+  DEBUG_LOGI(TAG, "Updated chaser data");
+}
+
+
 static esp_err_t server_request_handler_get(httpd_req_t *req) {
   httpd_resp_set_type(req, "text/html");
   httpd_resp_send(req, (const char*)html_start, html_end - html_start - 1);
@@ -267,24 +376,22 @@ static esp_err_t server_request_handler_get_bin(httpd_req_t *req) {
 }
 
 
-static esp_err_t server_request_handler_post(httpd_req_t *req) {
-  httpd_resp_send(req, "OK", HTTPD_RESP_USE_STRLEN);
-
+static chaser_data_t *get_chaser_data_from_post(httpd_req_t *req) {
   const size_t total_len = req->content_len;
   if (total_len == 0) {
     DEBUG_LOGI(TAG, "Received zero lenght data");
-    return ESP_FAIL;
+    return NULL;
   }
 
   if (total_len % sizeof(chaser_data_t) != 0) {
     DEBUG_LOGI(TAG, "Received data length is not multiple of chaser data length");
-    return ESP_FAIL;
+    return NULL;
   }
 
   chaser_data_t *new_data = malloc(total_len);
   if (new_data == NULL) {
     DEBUG_LOGI(TAG, "Could not allocate enough memory for the data");
-    return ESP_ERR_NO_MEM;
+    return NULL;
   }
 
   size_t received = 0;
@@ -295,37 +402,28 @@ static esp_err_t server_request_handler_post(httpd_req_t *req) {
         continue;
       }
       free(new_data);
-      return ESP_FAIL;
+      return NULL;
     }
     received += ret;
   }
-
-  if (chaser_data_mutex != NULL) {
-    xSemaphoreTake(chaser_data_mutex, portMAX_DELAY);
-  }
-
-  if (chaser_data != NULL) {
-    free(chaser_data);
-  }
-  chaser_data = new_data;
-  chaser_count = total_len / sizeof(chaser_data_t);
-
-  for (int i = 0; i < chaser_count; i++) {
-    if (chaser_data[i].range_length + chaser_data[i].range_offset > CONFIG_LED_COUNT) {
-      chaser_data[i].range_length=0;
-      chaser_data[i].range_offset=0;
-    }
-    if (chaser_data[i].range_length==0) {
-      chaser_data[i].range_length = CONFIG_LED_COUNT;
-    }
-  }
-
-  set_leds(0, 0, 0);
-
-  if (chaser_data_mutex != NULL) {
-    xSemaphoreGive(chaser_data_mutex);
-  }
   DEBUG_LOGI(TAG, "Received chaser data");
+  return new_data;
+}
+
+static esp_err_t server_request_handler_post(httpd_req_t *req) {
+  httpd_resp_send(req, "OK", HTTPD_RESP_USE_STRLEN);
+  chaser_data_t *new_data = get_chaser_data_from_post(req);
+  if(new_data==NULL) return ESP_FAIL;
+  update_chaser_data(new_data, req->content_len);
+  return ESP_OK;
+}
+
+static esp_err_t server_request_handler_post_save(httpd_req_t *req) {
+  httpd_resp_send(req, "OK", HTTPD_RESP_USE_STRLEN);
+  chaser_data_t *new_data = get_chaser_data_from_post(req);
+  if(new_data==NULL) return ESP_FAIL;
+  update_chaser_data(new_data, req->content_len);
+  save_chaser_data_to_nvs(new_data, req->content_len);
   return ESP_OK;
 }
 
@@ -337,12 +435,12 @@ static httpd_handle_t start_webserver(void)
   config.stack_size = 8192;
   httpd_handle_t server = NULL;
   if (httpd_start(&server, &config) == ESP_OK) {
-    httpd_register_uri_handler(server, &(httpd_uri_t){ .uri =      "/", .method =  HTTP_GET, .handler =     server_request_handler_get, .user_ctx = NULL });
-    httpd_register_uri_handler(server, &(httpd_uri_t){ .uri = "/s.css", .method =  HTTP_GET, .handler = server_request_handler_get_css, .user_ctx = NULL });
-    httpd_register_uri_handler(server, &(httpd_uri_t){ .uri =  "/j.js", .method =  HTTP_GET, .handler =  server_request_handler_get_js, .user_ctx = NULL });
-    httpd_register_uri_handler(server, &(httpd_uri_t){ .uri =   "/bin", .method =  HTTP_GET, .handler = server_request_handler_get_bin, .user_ctx = NULL });
-    httpd_register_uri_handler(server, &(httpd_uri_t){ .uri =      "/", .method = HTTP_POST, .handler =    server_request_handler_post, .user_ctx = NULL });
-
+    httpd_register_uri_handler(server, &(httpd_uri_t){ .uri =      "/", .method =  HTTP_GET, .handler =       server_request_handler_get, .user_ctx = NULL });
+    httpd_register_uri_handler(server, &(httpd_uri_t){ .uri = "/s.css", .method =  HTTP_GET, .handler =   server_request_handler_get_css, .user_ctx = NULL });
+    httpd_register_uri_handler(server, &(httpd_uri_t){ .uri =  "/j.js", .method =  HTTP_GET, .handler =    server_request_handler_get_js, .user_ctx = NULL });
+    httpd_register_uri_handler(server, &(httpd_uri_t){ .uri =   "/bin", .method =  HTTP_GET, .handler =   server_request_handler_get_bin, .user_ctx = NULL });
+    httpd_register_uri_handler(server, &(httpd_uri_t){ .uri =      "/", .method = HTTP_POST, .handler =      server_request_handler_post, .user_ctx = NULL });
+    httpd_register_uri_handler(server, &(httpd_uri_t){ .uri =  "/save", .method = HTTP_POST, .handler = server_request_handler_post_save, .user_ctx = NULL });
   }
   return server;
 }
@@ -385,6 +483,8 @@ void app_main(void) {
 
   nvs_flash_init();
   init_wifi();
+
+  load_chaser_data_from_nvs();
 
   while(chaser_count == 0) {
     DEBUG_LOGI(TAG, "Waiting for chaser data");
